@@ -19,7 +19,8 @@
     console.log('here')
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
     const isProduction = currentUrl.protocol === 'https:' ? true : false
-    const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080/ws'
+    // const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080/ws'
+    const wsUrl = 'wss://coderacer.deno.dev/'
 
     webSocket = new Sockette(wsUrl, {
       timeout: 5e3,
@@ -29,7 +30,7 @@
         request({ type: 'joinOrCreateRace' })
       },
       onmessage: (e) => {
-        console.log('e.data', e.data)
+        // console.log('e.data', e.data)
         const data = JSON.parse(e.data)
         if (data.race) {
           codeSnippet = data.race.codeSnippet.content
