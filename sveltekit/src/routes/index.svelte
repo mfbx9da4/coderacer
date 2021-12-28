@@ -8,15 +8,28 @@
   import Sockette from 'sockette'
   import { onMount } from 'svelte'
 
-  // let codeSnippet: Array<Array<string>> = []
+  const uuid = () => crypto.randomUUID()
+
+  // const userId = browser ? sessionStorage.getItem('userId') || 'user_' + uuid() : ''
+  // if (browser) sessionStorage.setItem('userId', userId)
+
+  let user: { userId: string; name?: string }
+
   let codeSnippet: string = ''
 
   let raceId: string = ''
   let webSocket: Sockette
   let progress = 0
   let members = []
-  if (!prerendering && browser) {
-    console.log('here')
+
+  onMount(() => {
+    if (localStorage.getItem('user')) {
+      user = JSON.parse(localStorage.getItem('user'))
+    } else {
+      user = { userId: uuid() }
+    }
+    localStorage.setItem('user', JSON.stringify(user))
+
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
     const isProduction = currentUrl.protocol === 'https:' ? true : false
     // const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080/ws'
@@ -26,6 +39,7 @@
       timeout: 5e3,
       maxAttempts: 10,
       onopen: (e) => {
+        console.log('re-open')
         request({ type: 'ping', t: Date.now() })
         request({ type: 'joinOrCreateRace' })
       },
@@ -43,13 +57,7 @@
       onclose: (e) => console.log('Closed!', e),
       onerror: (e) => console.log('Error:', e),
     })
-  }
-
-  const uuid = () => crypto.randomUUID()
-
-  const userId = browser ? sessionStorage.getItem('userId') || 'user_' + uuid() : ''
-  if (browser) sessionStorage.setItem('userId', userId)
-  const user = { name: 'Deno', userId }
+  })
 
   function request<T extends { type: string }>(data: T) {
     webSocket.json({ user, ...data, requestId: uuid() })
@@ -82,7 +90,7 @@
 </svelte:head>
 
 <section>
-  <!-- <button on:click={joinOrCreateRace}>Enter a typing race</button> -->
+  <button on:click={joinOrCreateRace}>Enter a typing race</button>
   {#each members as member}
     <div>{member.name}</div>
     <progress value={member.progress} max={codeSnippet.length} style="width: 100%" />
