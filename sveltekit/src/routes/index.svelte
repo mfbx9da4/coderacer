@@ -92,7 +92,7 @@
 <section>
   <button on:click={joinOrCreateRace}>Enter a typing race</button>
   {#each members as member}
-    <div>{member.name}</div>
+    <div>{member.name || `Guest (${member.userId.substring(5, 8)})`}</div>
     <progress value={member.progress} max={codeSnippet.length} style="width: 100%" />
   {/each}
 
