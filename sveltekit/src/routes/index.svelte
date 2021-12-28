@@ -20,7 +20,7 @@
   let raceId: string = ''
   let webSocket: Sockette
   let progress = 0
-  let members = []
+  let members: Array<{ userId: string; name?: string; progress: number }> = []
 
   onMount(() => {
     if (localStorage.getItem('user')) {
