@@ -6,7 +6,7 @@
   // import Counter from '$lib/Counter.svelte';
   import { browser, prerendering } from '$app/env'
   import Sockette from 'sockette'
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
 
   const uuid = () => crypto.randomUUID()
 
@@ -18,9 +18,11 @@
   let codeSnippet: string = ''
 
   let raceId: string = ''
-  let webSocket: Sockette
+  let webSocket: WebSocket
   let progress = 0
   let members: Array<{ userId: string; name?: string; progress: number }> = []
+  let instanceId: string = ''
+  let latency: number = 0
 
   onMount(() => {
     if (localStorage.getItem('user')) {
@@ -35,32 +37,36 @@
     // const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080/ws'
     const wsUrl = 'wss://coderacer.deno.dev/'
 
-    webSocket = new Sockette(wsUrl, {
-      timeout: 5e3,
-      maxAttempts: 10,
-      onopen: (e) => {
-        console.log('re-open')
-        request({ type: 'ping', t: Date.now() })
-        request({ type: 'joinOrCreateRace' })
-      },
-      onmessage: (e) => {
-        // console.log('e.data', e.data)
-        const data = JSON.parse(e.data)
-        if (data.race) {
-          codeSnippet = data.race.codeSnippet.content
-          raceId = data.race.raceId
-          members = data.race.members
-        }
-      },
-      onreconnect: (e) => console.log('Reconnecting...', e),
-      onmaximum: (e) => console.log('Stop Attempting!', e),
-      onclose: (e) => console.log('Closed!', e),
-      onerror: (e) => console.log('Error:', e),
-    })
+    webSocket = new WebSocket(wsUrl)
+    webSocket.onopen = () => {
+      console.log('open')
+      request({ type: 'ping' })
+      request({ type: 'joinOrCreateRace', user })
+    }
+    webSocket.onmessage = (e) => {
+      const data = JSON.parse(e.data)
+      if (data.race) {
+        codeSnippet = data.race.codeSnippet.content
+        raceId = data.race.raceId
+        members = data.race.members
+      }
+      if (data.type === 'ping') {
+        instanceId = data.instanceId
+      }
+    }
+    webSocket.onerror = () => {
+      alert('Socket error')
+    }
+    webSocket.onclose = () => {
+      console.log('Socket closed')
+    }
+  })
+  onDestroy(() => {
+    webSocket?.close()
   })
 
   function request<T extends { type: string }>(data: T) {
-    webSocket.json({ user, ...data, requestId: uuid() })
+    webSocket.send(JSON.stringify({ user, ...data, requestId: uuid() }))
   }
 
   function joinOrCreateRace() {
@@ -90,6 +96,10 @@
 </svelte:head>
 
 <section>
+  <div>
+    Instance Id: {instanceId}
+  </div>
+
   <button on:click={joinOrCreateRace}>Enter a typing race</button>
   {#each members as member}
     <div>{member.name || `Guest (${member.userId.substring(5, 8)})`}</div>
