@@ -5,7 +5,7 @@ import { assert, ErrorCode } from './assert.ts'
 type RaceId = `race_${string}`
 type UserId = `user_${string}`
 
-const instanceId = crypto.randomUUID()
+const serverId = crypto.randomUUID()
 
 const newRaceChannel = new BroadcastChannel('newRace')
 const upcomingRaces = new Map<RaceId, UpcomingRace>()
@@ -218,7 +218,7 @@ function addSocket(socket: WebSocket, user?: User) {
 }
 
 function handlePing(socket: WebSocket, data: { requestId: string; t: number; user: User; raceId?: RaceId }) {
-  socket.send(JSON.stringify({ type: 'pong', requestId: data.requestId, instanceId, t: Date.now() }))
+  socket.send(JSON.stringify({ type: 'pong', requestId: data.requestId, serverId, t: Date.now() }))
   if (data.raceId) return raceMethods.get(data.raceId).ping(data)
 }
 

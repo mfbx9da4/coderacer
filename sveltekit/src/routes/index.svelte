@@ -6,9 +6,10 @@
   // import Counter from '$lib/Counter.svelte';
   import { browser, prerendering } from '$app/env'
   import Sockette from 'sockette'
+  import { DeferredPromise } from '../DeferredPromise'
   import { onDestroy, onMount } from 'svelte'
 
-  const uuid = () => crypto.randomUUID()
+  const uuid = (): string => crypto.randomUUID()
 
   // const userId = browser ? sessionStorage.getItem('userId') || 'user_' + uuid() : ''
   // if (browser) sessionStorage.setItem('userId', userId)
@@ -21,7 +22,7 @@
   let webSocket: WebSocket
   let progress = 0
   let members: Array<{ userId: string; name?: string; progress: number }> = []
-  let instanceId: string = ''
+  let serverId: string = ''
   let latency: number = 0
 
   onMount(() => {
@@ -38,20 +39,20 @@
     const wsUrl = 'wss://coderacer.deno.dev/'
 
     webSocket = new WebSocket(wsUrl)
-    webSocket.onopen = () => {
+    webSocket.onopen = async () => {
       console.log('open')
-      request({ type: 'ping' })
+      ping()
       request({ type: 'joinOrCreateRace', user })
     }
     webSocket.onmessage = (e) => {
-      const data = JSON.parse(e.data)
-      if (data.race) {
+      const data = tryJsonParse(e.data)
+      if (data?.race) {
         codeSnippet = data.race.codeSnippet.content
         raceId = data.race.raceId
         members = data.race.members
       }
-      if (data.type === 'ping') {
-        instanceId = data.instanceId
+      if (data?.type === 'pong') {
+        serverId = data.instanceId
       }
     }
     webSocket.onerror = () => {
@@ -65,8 +66,29 @@
     webSocket?.close()
   })
 
-  function request<T extends { type: string }>(data: T) {
-    webSocket.send(JSON.stringify({ user, ...data, requestId: uuid() }))
+  function request<T extends { type: string }, Res = any>(data: T) {
+    const promise = new DeferredPromise<Res>()
+    const requestId = uuid()
+    const listener = (e: MessageEvent<any>) => {
+      const parsed = tryJsonParse(e.data)
+      if (!parsed) promise.reject(new Error(`Failed to parse "${e.data}"`))
+      if (parsed.requestId !== requestId) return
+      if (e.data.error) {
+        promise.reject(parsed)
+      } else {
+        promise.resolve(parsed)
+      }
+    }
+    webSocket.addEventListener('message', listener)
+    webSocket.send(JSON.stringify({ user, ...data, requestId }))
+    return promise.promise
+  }
+
+  async function ping() {
+    const start = Date.now()
+    const res = await request({ type: 'ping', t: start })
+    serverId = res.serverId
+    latency = Date.now() - start
   }
 
   function joinOrCreateRace() {
@@ -87,6 +109,14 @@
       }
     }
   }
+
+  function tryJsonParse(data: string) {
+    try {
+      return JSON.parse(data)
+    } catch {
+      return
+    }
+  }
 </script>
 
 <svelte:window on:keydown={handleKeyDown} />
@@ -97,7 +127,8 @@
 
 <section>
   <div>
-    Instance Id: {instanceId}
+    Server Id: {serverId}
+    Latency: {latency}
   </div>
 
   <button on:click={joinOrCreateRace}>Enter a typing race</button>
