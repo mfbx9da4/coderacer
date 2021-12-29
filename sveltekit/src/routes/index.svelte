@@ -8,6 +8,7 @@
   import Sockette from 'sockette'
   import { DeferredPromise } from '../DeferredPromise'
   import { onDestroy, onMount } from 'svelte'
+  import { Socket } from './socket'
 
   const uuid = (): string => crypto.randomUUID()
 
@@ -19,7 +20,7 @@
   let codeSnippet: string = ''
 
   let raceId: string = ''
-  let webSocket: WebSocket
+  let webSocket: Socket
   let progress = 0
   let members: Array<{ userId: string; name?: string; progress: number }> = []
   let serverId: string = ''
@@ -38,29 +39,33 @@
     // const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080/ws'
     const wsUrl = 'wss://coderacer.deno.dev/'
 
-    webSocket = new WebSocket(wsUrl)
-    webSocket.onopen = async () => {
-      console.log('open')
-      ping()
-      request({ type: 'joinOrCreateRace', user })
-    }
-    webSocket.onmessage = (e) => {
-      const data = tryJsonParse(e.data)
-      if (data?.race) {
-        codeSnippet = data.race.codeSnippet.content
-        raceId = data.race.raceId
-        members = data.race.members
-      }
-      if (data?.type === 'pong') {
-        serverId = data.instanceId
-      }
-    }
-    webSocket.onerror = () => {
-      alert('Socket error')
-    }
-    webSocket.onclose = () => {
-      console.log('Socket closed')
-    }
+    webSocket = new Socket(wsUrl, {
+      onopen: async () => {
+        console.log('open')
+        ping()
+        request({ type: 'joinOrCreateRace', user })
+        while (true) {
+          await new Promise((resolve) => setTimeout(resolve, 15000))
+          ping()
+        }
+      },
+      onjson: (data) => {
+        if (data?.race) {
+          codeSnippet = data.race.codeSnippet.content
+          raceId = data.race.raceId
+          members = data.race.members
+        }
+        if (data?.type === 'pong') {
+          serverId = data.instanceId
+        }
+      },
+      onerror: (e) => {
+        console.log('Socket error', e)
+      },
+      onclose: (e) => {
+        console.log('Socket closed', e)
+      },
+    })
   })
   onDestroy(() => {
     webSocket?.close()
@@ -70,6 +75,7 @@
     const promise = new DeferredPromise<Res>()
     const requestId = uuid()
     const listener = (e: MessageEvent<any>) => {
+      if (!promise.isPending) return webSocket.ws.removeEventListener('message', listener)
       const parsed = tryJsonParse(e.data)
       if (!parsed) promise.reject(new Error(`Failed to parse "${e.data}"`))
       if (parsed.requestId !== requestId) return
@@ -78,9 +84,10 @@
       } else {
         promise.resolve(parsed)
       }
+      webSocket.ws.removeEventListener('message', listener)
     }
-    webSocket.addEventListener('message', listener)
-    webSocket.send(JSON.stringify({ user, ...data, requestId }))
+    webSocket.ws.addEventListener('message', listener)
+    webSocket.json({ user, ...data, requestId })
     return promise.promise
   }
 
@@ -138,9 +145,9 @@
   {/each}
 
   <pre style="color: white">
-    <span style="color: green">{codeSnippet.substring(0, progress)}</span><span style="background-color: blue"
+    <span style="color: #50fa7b">{codeSnippet.substring(0, progress)}</span><span style="background-color: #00768f"
       >{codeSnippet.substring(progress, progress + 1)}</span
-    ><span>{codeSnippet.substring(progress + 1)}</span>
+    ><span style="color: #8e9abe">{codeSnippet.substring(progress + 1)}</span>
   </pre>
 </section>
 

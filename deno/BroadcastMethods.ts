@@ -42,6 +42,7 @@ export class BroadcastMethods<T extends Record<string, Function>> {
         chan.postMessage({ error, requestId })
       }
     }
+
     return chan
   }
 
@@ -52,6 +53,7 @@ export class BroadcastMethods<T extends Record<string, Function>> {
       const chan = new BroadcastChannel(channelId)
       const promise = new DeferredPromise<T[typeof fn]>()
       chan.onmessage = (e) => {
+        if (!promise.isPending) return chan.close()
         if (requestId === e.data?.requestId) {
           chan.close()
           if ('error' in e.data) {
@@ -64,7 +66,7 @@ export class BroadcastMethods<T extends Record<string, Function>> {
       setTimeout(() => {
         if (promise.isPending) {
           chan.close()
-          promise.reject(new Error(`timeout for "${channelId}" method: "${fn}"`))
+          promise.reject(new Error(`Timeout for "${channelId}" method: "${fn}"`))
         }
       }, this.timeout)
 
@@ -82,4 +84,34 @@ export class BroadcastMethods<T extends Record<string, Function>> {
       },
     ) as PromisifyMethods<T>
   }
+}
+
+export async function usage() {
+  // Set up some in memory state.
+  // We want to make this state globally available to all deno instances.
+  let count = 0
+  const counterMethods = {
+    increment: () => (count += 1),
+    decrement: () => (count -= 1),
+    currentCount: () => count,
+  }
+  // This ID should be unique across all deno instances.
+  const counterId = 'some-uuid'
+
+  const globalCounters = new BroadcastMethods<typeof counterMethods>()
+
+  // We expose the counter methods to all deno instances for this specific `counterId`
+  globalCounters.expose(counterId, counterMethods)
+
+  // We can get the current state of the counter on it's origin deno instance.
+  // If the counter is on this deno instance, it will short circuit and return the current state.
+  // If the counter has not yet been initialized or the origin deno instance has died, this will
+  // throw with a timeout error.
+  const counterInstance = globalCounters.get('some-uuid')
+  console.log('currentCount', await counterInstance.currentCount())
+
+  // We can also increment and decrement the counter on it's origin deno instance.
+  await counterInstance.increment()
+  await counterInstance.decrement()
+  console.log('currentCount', await counterInstance.currentCount())
 }

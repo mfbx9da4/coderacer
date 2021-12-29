@@ -1,6 +1,14 @@
+import { createAppAuth } from './deps.ts'
 import { BroadcastMethods } from './BroadcastMethods.ts'
 import { serve } from 'https://deno.land/std/http/server.ts'
 import { assert, ErrorCode } from './assert.ts'
+
+const auth = createAppAuth({
+  appId: 1,
+  privateKey: '-----BEGIN PRIVATE KEY-----\n...',
+  clientId: 'lv1.1234567890abcdef',
+  clientSecret: '1234567890abcdef12341234567890abcdef1234',
+})
 
 type RaceId = `race_${string}`
 type UserId = `user_${string}`
