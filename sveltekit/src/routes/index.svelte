@@ -12,9 +12,6 @@
 
   const uuid = (): string => crypto.randomUUID()
 
-  // const userId = browser ? sessionStorage.getItem('userId') || 'user_' + uuid() : ''
-  // if (browser) sessionStorage.setItem('userId', userId)
-
   let user: { userId: string; name?: string }
 
   let codeSnippet: string = ''
@@ -36,18 +33,13 @@
 
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
     const isProduction = currentUrl.protocol === 'https:' ? true : false
-    // const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080/ws'
-    const wsUrl = 'wss://coderacer.deno.dev/'
+    const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080'
+    // const wsUrl = 'wss://coderacer.deno.dev/'
 
     webSocket = new Socket(wsUrl, {
       onopen: async () => {
         console.log('open')
-        ping()
         request({ type: 'joinOrCreateRace', user })
-        while (true) {
-          await new Promise((resolve) => setTimeout(resolve, 15000))
-          ping()
-        }
       },
       onjson: (data) => {
         if (data?.race) {
@@ -65,12 +57,21 @@
       onclose: (e) => {
         console.log('Socket closed', e)
       },
+      onreconnect: (e) => {
+        console.log('Socket reconnect')
+      },
+      ping
     })
   })
+
   onDestroy(() => {
-    webSocket?.close()
+    console.log('destroy')
+    if (webSocket?.ws.OPEN || webSocket?.ws.CONNECTING) {
+      webSocket?.close()
+    }
   })
 
+  
   function request<T extends { type: string }, Res = any>(data: T) {
     const promise = new DeferredPromise<Res>()
     const requestId = uuid()
@@ -93,6 +94,7 @@
 
   async function ping() {
     const start = Date.now()
+    console.log('ping')
     const res = await request({ type: 'ping', t: start })
     serverId = res.serverId
     latency = Date.now() - start

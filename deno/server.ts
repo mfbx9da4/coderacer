@@ -73,7 +73,7 @@ type RaceMember = {
 interface NextRaceInput extends UpcomingRace {
   type: 'race.created'
 }
-newRaceChannel.onmessage = (e) => {
+newRaceChannel.onmessage = e => {
   const data = e.data as NextRaceInput
   if (data.type === 'race.created') {
     upcomingRaces.set(data.raceId, { raceId: data.raceId, startAt: data.startAt })
@@ -115,7 +115,8 @@ function joinOrCreateRace(data: { requestId: string; user: User }) {
   const { user } = data
   const raceId = findNextRace()
   if (raceId) {
-    return raceMethods.get(raceId).joinRace({ raceId: raceId, user, requestId: data.requestId })
+    const race = raceMethods.get(raceId)
+    return race.joinRace({ raceId: raceId, user, requestId: data.requestId })
   }
   createRace(data)
 }
@@ -199,7 +200,7 @@ function progress(data: { requestId: string; user: User; raceId: RaceId; progres
   if (member.progress === race.codeSnippet.content.length) {
     member.finishedAt = Date.now()
   }
-  if (!race.finishedAt && [...race.members.values()].every((x) => x.finishedAt)) {
+  if (!race.finishedAt && [...race.members.values()].every(x => x.finishedAt)) {
     // the race has now finished now that everyone has completed it
     race.finishedAt = Date.now()
   }
@@ -212,14 +213,21 @@ function addSocket(socket: WebSocket, user?: User) {
   const currentSocket = userSockets.get(userId)?.socket
   if (currentSocket !== socket) {
     const channel = new BroadcastChannel(userId)
-    channel.onmessage = (e) => {
-      socket.send(JSON.stringify(e.data))
-    }
-
-    socket.onclose = () => {
+    const destroy = () => {
       channel.close()
       userSockets.delete(userId)
     }
+
+    channel.onmessage = e => {
+      try {
+        socket.send(JSON.stringify(e.data))
+      } catch (error) {
+        console.error('Failed tosend to socket', e.data, error)
+        destroy()
+      }
+    }
+
+    socket.onclose = destroy
 
     userSockets.set(userId, { userId, socket, channel })
   }
@@ -234,13 +242,13 @@ await serve(
   (r: Request) => {
     try {
       const { socket, response } = Deno.upgradeWebSocket(r)
-      socket.onmessage = (e) => {
+      socket.onmessage = e => {
         const { type, ...data } = tryJsonParse(e.data)
         try {
           assert(data, 'missing data', e.data)
           addSocket(socket, data.user as User)
 
-          console.log('data', data)
+          console.log('[request]', data)
 
           data.requestId = data.requestId || crypto.randomUUID()
 
@@ -251,8 +259,6 @@ await serve(
               return handlePing(socket, data)
             case 'progress':
               return raceMethods.get(data.raceId).progress(data)
-            case 'joinRace':
-              return raceMethods.get(data.raceId).joinRace(data)
           }
           throw new Error('Unknown message type')
         } catch (error) {

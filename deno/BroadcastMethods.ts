@@ -25,7 +25,7 @@ export class BroadcastMethods<T extends Record<string, Function>> {
   expose(channelId: string, methods: T) {
     assert(channelId, 'missing channelId')
     const chan = new BroadcastChannel(channelId)
-    chan.onmessage = async (e) => {
+    chan.onmessage = async e => {
       assert(e.data, `missing data for "${channelId}"`)
       const data = e.data as Payload<T>
       const requestId = data.requestId
@@ -52,7 +52,7 @@ export class BroadcastMethods<T extends Record<string, Function>> {
       const requestId = uuid()
       const chan = new BroadcastChannel(channelId)
       const promise = new DeferredPromise<T[typeof fn]>()
-      chan.onmessage = (e) => {
+      chan.onmessage = e => {
         if (!promise.isPending) return chan.close()
         if (requestId === e.data?.requestId) {
           chan.close()
@@ -103,7 +103,7 @@ export async function usage() {
   // We expose the counter methods to all deno instances for this specific `counterId`
   globalCounters.expose(counterId, counterMethods)
 
-  // We can get the current state of the counter on it's origin deno instance.
+  // We can now get the current state of the counter from it's origin deno instance.
   // If the counter is on this deno instance, it will short circuit and return the current state.
   // If the counter has not yet been initialized or the origin deno instance has died, this will
   // throw with a timeout error.

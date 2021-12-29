@@ -3,7 +3,7 @@ function noop() {}
 // export type JsonPrimitive = string | number | boolean | null
 // export type JsonObject = { [member: string]: JsonValue }
 // export type JsonArray = Array<JsonValue>
-// export type JsonValue = JsonPrimitive | JsonObject | JsonArray
+// export type Json = JsonPrimitive | JsonObject | JsonArray
 
 function tryJsonParse(value: string) {
   try {
@@ -22,6 +22,10 @@ export interface SocketOptions {
   onmaximum?: (ev: Event | CloseEvent | ErrorEvent) => unknown
   onclose?: (ev: CloseEvent) => unknown
   onerror?: (ev: Event) => unknown
+  /** This callback will be executed periodically to keep the connection alive */
+  ping?: (socket: Socket) => unknown
+  /** How often the ping should be callback should be executed */
+  pingInterval?: number
 }
 
 enum ErrorCodes {
@@ -34,6 +38,7 @@ export class Socket {
   opts: Required<SocketOptions>
   ws: WebSocket
   url: string
+  heartbeat: ReturnType<typeof heartbeat>
   private timer: ReturnType<typeof setTimeout> | undefined = 1
   private num = 0
 
@@ -41,6 +46,7 @@ export class Socket {
     this.opts = {
       protocols: [],
       retryInterval: 1000,
+      pingInterval: 15000,
       maxAttempts: Infinity,
       onopen: noop,
       onjson: noop,
@@ -49,10 +55,12 @@ export class Socket {
       onmaximum: noop,
       onclose: noop,
       onerror: noop,
+      ping: noop,
       ...opts,
     }
     this.url = url
     this.ws = this.open()
+    this.heartbeat = heartbeat(() => this.opts.ping(this), this.opts.pingInterval)
   }
 
   open() {
@@ -68,13 +76,15 @@ export class Socket {
     ws.onopen = (e) => {
       this.opts.onopen(e)
       this.num = 0
+      this.heartbeat.start()
     }
 
     ws.onclose = (e) => {
       // https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent/code
-      const codesToSkip = [ErrorCodes.NormalClosure, ErrorCodes.GoingAway, ErrorCodes.NoStatusReceived]
-      if (!codesToSkip.includes(e.code)) this.reconnect(e)
+      const skipReconnect = [ErrorCodes.NormalClosure, ErrorCodes.GoingAway, ErrorCodes.NoStatusReceived]
+      if (!skipReconnect.includes(e.code)) this.reconnect(e)
       this.opts.onclose(e)
+      this.heartbeat.stop()
     }
 
     ws.onerror = (e) => {
@@ -112,4 +122,25 @@ export class Socket {
     this.timer = undefined
     this.ws.close(code || ErrorCodes.NormalClosure, reason)
   }
+}
+
+function heartbeat(ping: () => unknown, pingInterval: number) {
+  let pingTimeout: ReturnType<typeof setTimeout> | undefined
+  function start() {
+    if (pingTimeout) return
+    ping()
+    schedulePing()
+  }
+  function schedulePing() {
+    pingTimeout = setTimeout(() => {
+      ping()
+      schedulePing()
+    }, pingInterval)
+  }
+  function stop() {
+    if (!pingTimeout) return
+    clearTimeout(pingTimeout)
+    pingTimeout = undefined
+  }
+  return { start, stop }
 }
