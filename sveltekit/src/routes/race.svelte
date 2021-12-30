@@ -154,8 +154,8 @@
     Nedd connection status
    -->
 
+  {phase === 'get_ready' ? 'Get ready' : phase === 'finding_peers' ? 'Waiting for more people...' : 'GO!'}
   {timeRemaining}
-  {phase}
 
   {#each members as member}
     <div>{member.name || `Guest (${member.userId.substring(5, 8)})`}</div>
