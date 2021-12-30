@@ -7,6 +7,8 @@ import { config } from 'https://deno.land/x/dotenv/mod.ts'
 const github_client_id = Deno.env.get('github_client_id') || config().github_client_id
 const github_client_secret = Deno.env.get('github_client_secret') || config().github_client_secret
 
+const snippetCache: Array<CodeSnippet> = []
+
 const goodUsers = [
   'org:facebook',
   'org:sveltejs',
@@ -22,10 +24,13 @@ export const choice = <T>(array: Array<T> | Readonly<Array<T>>): T | undefined =
   array[Math.round(Math.random() * (array.length - 1))]
 
 async function findCodeSnippet() {
+  if (snippetCache.length) {
+    return snippetCache.pop()!
+  }
+
   try {
     const start = Date.now()
     const goodUser = choice(goodUsers)
-    console.log('goodUser', goodUser)
     const params = Object.entries({
       q: `function language:typescript language:javascript ${goodUser}`,
       sort: 'indexed',
@@ -60,37 +65,39 @@ async function findCodeSnippet() {
           content: string
           encoding: string
         }
-        // console.log('json', json)
 
         const content = Base64.fromBase64String(json.content).toString()
         const match = (regex: RegExp) => {
-          const matches = [...content.matchAll(regex)]
-          const oneOf = choice(matches.filter(x => typeof x.index === 'number'))
-          if (typeof oneOf?.index === 'number') {
-            return {
-              content: content.substring(oneOf.index, oneOf.index + 250),
-              startIndex: oneOf.index,
-              url: file.url,
-              html_url: file.html_url,
-              name: file.name,
-              path: file.path,
-              repository: file.repository.full_name,
-              lineNumber: content.substring(0, oneOf.index).split('\n').length,
+          const matches = [...content.matchAll(regex)].filter(x => typeof x.index === 'number')
+          let snippet: CodeSnippet | undefined
+          for (const validMatch of matches) {
+            if (typeof validMatch?.index === 'number') {
+              snippet = {
+                content: content.substring(validMatch.index, validMatch.index + 250),
+                startIndex: validMatch.index,
+                url: file.url,
+                html_url: file.html_url,
+                name: file.name,
+                path: file.path,
+                repository: file.repository.full_name,
+                lineNumber: content.substring(0, validMatch.index).split('\n').length,
+              }
+              snippetCache.push(snippet)
             }
           }
+          return snippet
         }
         const ans =
-          match(/^export function /g) ||
-          match(/^export function\* /g) ||
-          match(/^export async function /g) ||
-          match(/^export default function /g) ||
-          match(/^function /g) ||
-          match(/^async function /g) ||
-          match(/function /g)
+          match(/^export function/g) ||
+          match(/^export async function/g) ||
+          match(/^export default function/g) ||
+          match(/^function/g) ||
+          match(/^async function/g) ||
+          match(/^export class /g) ||
+          match(/^module.exports = function/g)
         return ans
       }),
     )
-
     console.log('snippet', snippet, snippet?.html_url, 'took', Date.now() - start)
     assert(snippet, ErrorCode.NoSnippetFound)
     return snippet
@@ -134,6 +141,17 @@ type UpcomingRace = {
   startAt: number
 }
 
+type CodeSnippet = {
+  content: string
+  startIndex: number
+  url: string
+  html_url: string
+  name: string
+  path: string
+  repository: string
+  lineNumber: number
+}
+
 type Race = {
   raceId: RaceId
   channel: BroadcastChannel
@@ -141,16 +159,7 @@ type Race = {
   startAt: number
   finishedAt?: number
   winner?: string
-  codeSnippet: {
-    content: string
-    startIndex: number
-    url: string
-    html_url: string
-    name: string
-    path: string
-    repository: string
-    lineNumber: number
-  }
+  codeSnippet: CodeSnippet
   heartbeatAt: number
   members: Map<UserId, RaceMember>
   toJSON: () => Exclude<Race, 'toJSON' | 'channel' | 'heartbeatAt'> & {
@@ -158,7 +167,9 @@ type Race = {
   }
 }
 
-type RaceMember = {
+export type SerializedRace = ReturnType<Race['toJSON']>
+
+export type RaceMember = {
   name?: string
   userId: UserId
   progress: number

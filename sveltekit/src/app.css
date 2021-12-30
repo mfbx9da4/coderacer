@@ -14,7 +14,7 @@
   --lightest-pink: hsl(315.6, 63.4%, 83%);
   --blue: hsl(190.5, 96.6%, 76.9%);
   --green: hsl(135.2, 94.4%, 64.7%);
-  --text-color: hsl(0, 0%, 94.9%);
+  --text-color: hsl(60, 30%, 96.1%);
   --text-color-secondary: hsla(0, 0%, 100%, 0.6);
   --subtle-text-color: hsl(225.5, 24.6%, 49.4%);
   --background-without-opacity: hsla(0, 0%, 100%, 0.7);
@@ -25,12 +25,14 @@
 * {
   box-sizing: border-box;
   font-family: var(--font-family);
+  /* border: 1px solid var(--green); */
 }
 
 body {
   min-height: 100vh;
   margin: 0;
   background-color: var(--primary-color);
+  color: var(--text-color);
 }
 
 body::before {
@@ -102,4 +104,5 @@ button {
   font-family: inherit;
   outline: 0;
   border: 0;
+  cursor: pointer;
 }

@@ -29,13 +29,14 @@ function createUserStore() {
   if (localStorage.getItem('user')) {
     user = JSON.parse(localStorage.getItem('user') || '{}')
   } else {
-    user = { userId: `user=${uuid()}` }
+    user = { userId: `user_${uuid()}` }
   }
   localStorage.setItem('user', JSON.stringify(user))
 
   const { subscribe, set, update } = writable<User>(user)
 
   self.addEventListener('storage', () => {
+    console.log('storage')
     const newUser = JSON.parse(localStorage.getItem('user') || '{}')
     if (newUser.name !== user.name || newUser.userId !== user.userId) {
       update(newUser)

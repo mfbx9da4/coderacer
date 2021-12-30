@@ -3,30 +3,25 @@
 </script>
 
 <script lang="ts">
-  import { quintOut } from 'svelte/easing'
-  import { crossfade } from 'svelte/transition'
-  import { goto } from '$app/navigation'
-
+  import { fly } from 'svelte/transition'
+  import { crossfade } from './crossfade'
+  import Race from './race.svelte'
   import { user } from './userStore'
 
   let name = $user.name || ''
 
-  let state: 'initial' | 'enter_name' = 'initial'
+  let state: 'initial' | 'enter_name' | 'game' = 'initial'
 
-  const [send, receive] = crossfade({
-    // duration: (d) => Math.sqrt(d * 200),
-    // easing: quintOut,
-    duration: 10000,
-    easing: (x) => x,
-  })
+  const [send, receive] = crossfade()
 
   console.log('name', name)
 
-  function startGame() {
+  function startGame(e: Event) {
+    e.preventDefault()
     console.log('name', name)
     if (name) {
       user.setName(name)
-      goto('/race')
+      state = 'game'
     } else {
       state = 'enter_name'
     }
@@ -37,45 +32,54 @@
   <title>Home</title>
 </svelte:head>
 
-<section>
-  <h1>Typeracer</h1>
-  <h2>Competitive touch typing for programmers</h2>
-  <div class="container">
-    {#if state === 'initial'}
-      <button
-        class="common button"
-        on:click={startGame}
-        in:receive={{ key: 'cta' }}
-        out:send={{ key: 'cta' }}
-        tabindex="0"
-      >
-        <div in:receive={{ key: 'cta-text' }} out:send={{ key: 'cta-text' }}>Start Game</div>
-      </button>
-    {/if}
+<div style="display: grid; width: 100vw; height: 100vh; grid-template: 1fr / 1fr">
+  {#if state === 'initial' || state === 'enter_name'}
+    <section out:fly={{ y: -200, duration: 200 }}>
+      <h1>Typeracer</h1>
+      <h2>Competitive touch typing for programmers</h2>
 
-    {#if state === 'enter_name'}
-      <div
-        tabindex="0"
-        class="common output"
-        on:click={startGame}
-        in:receive={{ key: 'cta' }}
-        out:send={{ key: 'cta' }}
-      >
-        <!-- <a href="/race">Enter your name</a> -->
-        <label>
-          Enter your name:
-          <input name="name" bind:value={name} autocomplete="name" autofocus placeholder="Enter your name" />
-        </label>
-        <button class="common button" in:receive={{ key: 'cta-text' }} out:send={{ key: 'cta-text' }}>Start Game</button
-        >
+      <div style="display: grid">
+        {#if state === 'initial'}
+          <main style="grid-area: 1/1; height: 180px" in:receive={{ key: 'main' }} out:send={{ key: 'main' }}>
+            <button class="button" on:click={startGame} tabindex="0" in:receive={{ key: 'a' }} out:send={{ key: 'a' }}>
+              Start Game
+            </button>
+          </main>
+        {/if}
+
+        {#if state === 'enter_name'}
+          <main style="grid-area: 1/1; height: 180px" in:receive={{ key: 'main' }} out:send={{ key: 'main' }}>
+            <form class="enter-name-form" on:submit={startGame}>
+              <input
+                name="name"
+                bind:value={name}
+                style="padding: 10px; width: 100%"
+                autocomplete="name"
+                autofocus
+                placeholder="Enter your name"
+              />
+              <button class="button" in:receive={{ key: 'a' }} out:send={{ key: 'a' }}>Start Game</button>
+            </form>
+          </main>
+        {/if}
       </div>
-    {/if}
-  </div>
-</section>
+    </section>
+  {/if}
+
+  {#if state === 'game'}
+    <main
+      in:receive={{ key: 'main' }}
+      out:send={{ key: 'main' }}
+      style=" border: 4px solid var(--pink); border-radius: 4px; grid-area: 1/1/1/1; width: calc(100% - 40px); max-width: 1200px; margin: 20px auto;"
+    >
+      <Race />
+    </main>
+  {/if}
+</div>
 
 <style lang="scss">
   section {
-    text-align: center;
+    grid-area: 1/1/2/2;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -89,22 +93,17 @@
   h1 {
     font-family: var(--font-mono);
   }
-  * {
-    /* border: 1px solid $green; */
-  }
 
-  .container {
-    display: grid;
-    height: 200px;
-  }
-
-  .common {
-    justify-content: center;
+  .enter-name-form {
+    justify-content: space-between;
+    align-items: center;
     border-radius: 10px;
-    grid-area: 1/1/2/2;
     display: flex;
     padding: 20px;
-    margin: 0 auto;
+    flex-direction: column;
+    border: 4px solid var(--pink);
+    width: 400px;
+    height: 100%;
   }
   .common:hover {
     cursor: pointer;
@@ -117,6 +116,7 @@
     color: var(--primary-color);
     width: 250px;
     height: 70px;
+    border-radius: 10px;
     &:hover {
       background-color: var(--lighter-pink);
     }
@@ -124,12 +124,5 @@
       border: 1px solid var(--white);
       box-shadow: 0px 0px 4px 1px var(--lightest-pink);
     }
-  }
-
-  .output {
-    border: 4px solid var(--pink);
-    height: 200px;
-    width: 400px;
-    margin: 0 auto;
   }
 </style>

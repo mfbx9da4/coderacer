@@ -6,43 +6,38 @@
   import { browser } from '$app/env'
   import { v4 } from '@lukeed/uuid'
   import { onDestroy, onMount } from 'svelte'
-  import { quintInOut } from 'svelte/easing'
-  import { crossfade } from 'svelte/transition'
   import { DeferredPromise } from '../DeferredPromise'
   import { Socket } from '../lib/socket'
+  import { crossfade } from './crossfade'
   import { user as userStore } from './userStore'
+  import type { RaceMember, SerializedRace } from '../../../deno/server'
 
   const user = $userStore
 
-  const [send, receive] = crossfade({
-    duration: (d) => Math.sqrt(d * 200),
-
-    fallback(node, params) {
-      const style = getComputedStyle(node)
-      const transform = style.transform === 'none' ? '' : style.transform
-
-      return {
-        duration: 600,
-        easing: quintInOut,
-        css: (t) => `
-    			transform: ${transform} scale(${t});
-    			opacity: ${t}
-    		`,
-      }
-    },
-  })
+  const [send, receive] = crossfade()
 
   const uuid = (): string => v4()
 
   let codeSnippetContent: string = ''
-  let codeSnippet: any = ''
+  let codeSnippet: any = {}
 
   let raceId: string = ''
   let webSocket: Socket
   let progress = 0
-  let members: Array<{ userId: string; name?: string; progress: number }> = []
+  let members: Array<RaceMember> = []
   let serverId: string = ''
   let latency: number = 0
+  let startAt: number = 0
+  let now = Date.now()
+  function scheduleUpdateNow() {
+    setTimeout(() => {
+      now = Date.now()
+      scheduleUpdateNow()
+    }, 1000)
+  }
+  scheduleUpdateNow()
+  $: timeRemaining = Math.round(Math.max(startAt - now, 0) / 1000)
+  $: phase = timeRemaining === 0 ? 'playing' : timeRemaining < 3 ? 'get_ready' : 'finding_peers'
 
   onMount(() => {
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
@@ -52,15 +47,17 @@
 
     webSocket = new Socket(wsUrl, {
       onopen: async () => {
-        console.log('open')
+        console.log('Socket open')
         request({ type: 'joinOrCreateRace', user })
       },
       onjson: (data) => {
         if (data?.race) {
-          codeSnippetContent = data.race.codeSnippet.content
-          codeSnippet = data.race.codeSnippet
-          raceId = data.race.raceId
-          members = data.race.members
+          const race: SerializedRace = data?.race
+          codeSnippetContent = race.codeSnippet.content
+          codeSnippet = race.codeSnippet
+          raceId = race.raceId
+          startAt = race.startAt
+          members = race.members
         }
         if (data?.type === 'pong') {
           serverId = data.instanceId
@@ -114,11 +111,8 @@
     latency = Date.now() - start
   }
 
-  function joinOrCreateRace() {
-    request({ type: 'joinOrCreateRace' })
-  }
-
   function handleKeyDown(e: KeyboardEvent) {
+    if (phase !== 'playing') return
     if (!e.metaKey) {
       e.preventDefault()
     }
@@ -151,14 +145,18 @@
   <title>Home</title>
 </svelte:head>
 
-<section in:receive={{ key: 'main' }} out:send={{ key: 'main' }}>
-  <div>
-    Server Id: {serverId}
-    Latency: {latency}
-    User:
-  </div>
+<section style="padding: 20px">
+  <!-- 
+    Need countdown
+    Need finding users
+    Need wpm
+    Need success state
+    Nedd connection status
+   -->
 
-  <button on:click={joinOrCreateRace}>Enter a typing race</button>
+  {timeRemaining}
+  {phase}
+
   {#each members as member}
     <div>{member.name || `Guest (${member.userId.substring(5, 8)})`}</div>
     <progress value={member.progress} max={codeSnippetContent.length} style="width: 100%" />
@@ -171,7 +169,7 @@
   </pre>
 
   <pre style="color: #8e9abe">{JSON.stringify(codeSnippet, null, 2)}</pre>
-  <!-- <a target="_blank" href={`${codeSnippet.html_url}#L${codeSnippet.lineNumber}`}>Source</a> -->
+  <a target="_blank" href={codeSnippet ? `${codeSnippet.html_url}#L${codeSnippet.lineNumber}` : '#'}>Source</a>
 </section>
 
 <style>
