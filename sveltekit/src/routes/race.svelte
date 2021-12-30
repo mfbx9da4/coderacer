@@ -19,7 +19,7 @@
   const uuid = (): string => v4()
 
   let codeSnippetContent: string = ''
-  let codeSnippet: any = {}
+  let codeSnippet: SerializedRace['codeSnippet'] | undefined
 
   let raceId: string = ''
   let webSocket: Socket
@@ -151,11 +151,23 @@
     Need finding users
     Need wpm
     Need success state
-    Nedd connection status
+    Need connection status
+    Need if got enough users start the game already (updateGame)
+    Need to 
    -->
 
-  {phase === 'get_ready' ? 'Get ready' : phase === 'finding_peers' ? 'Waiting for more people...' : 'GO!'}
-  {timeRemaining}
+  <div style="margin: 0 auto; text-align: center">
+    {phase === 'get_ready' ? 'Get ready' : phase === 'finding_peers' ? 'Waiting for more people...' : ' '}
+  </div>
+  <div
+    style="display: flex; margin: 10px auto; border-radius: 50%; border: 8px solid {timeRemaining == 0
+      ? 'var(--green)'
+      : 'var(--pink)'}; width: 150px; height: 150px; justify-content: center; align-items: center"
+  >
+    <div style={`font-size: 40px; color: ${timeRemaining == 0 ? 'var(--green)' : 'var(--pink)'}`}>
+      {timeRemaining || 'GO!'}
+    </div>
+  </div>
 
   {#each members as member}
     <div>{member.name || `Guest (${member.userId.substring(5, 8)})`}</div>
@@ -168,9 +180,41 @@
     ><span style="color: #8e9abe">{codeSnippetContent.substring(progress + 1)}</span>
   </pre>
 
-  <pre style="color: #8e9abe">{JSON.stringify(codeSnippet, null, 2)}</pre>
-  <a target="_blank" href={codeSnippet?.html_url ? `${codeSnippet.html_url}#L${codeSnippet.lineNumber}` : '#'}>Source</a
-  >
+  <!-- show code snippet avatar url who wrote it and link to source code -->
+  {#if codeSnippet}
+    <div style="border: 1px solid var(--white); margin: 40px 0; " />
+
+    <h3 style="padding-bottom: 20px; ; font-size: 25px;">Coded by</h3>
+    <div style="display: flex">
+      <a
+        style="display: flex; flex-direction: column; align-items: center; "
+        target="_blank"
+        rel="noreferrer"
+        href={codeSnippet.owner.url}
+      >
+        <img style="" width="100" height="100" src={codeSnippet.owner.avatar_url} alt={codeSnippet.owner.name} />
+        <div style="padding-top: 10px;">{codeSnippet.owner.name}</div>
+      </a>
+      <div style="display: flex; padding-left: 20px; flex-direction: column">
+        <div>
+          <a
+            style="font-size: 20px;"
+            target="_blank"
+            href={codeSnippet?.html_url ? `${codeSnippet.html_url}#L${codeSnippet.lineNumber}` : '#'}
+            ><span style="color: var(--white)">{codeSnippet.repository.name}</span>/{codeSnippet.path}</a
+          >
+        </div>
+        <div style="padding-top: 5px;">
+          <a
+            target="_blank"
+            style="color: var(--text-color-secondary)"
+            href={codeSnippet?.html_url ? `${codeSnippet.html_url}#L${codeSnippet.lineNumber}` : '#'}
+            >{codeSnippet.repository.description || ''}</a
+          >
+        </div>
+      </div>
+    </div>
+  {/if}
 </section>
 
 <style>

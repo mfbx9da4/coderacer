@@ -10,8 +10,6 @@ const github_client_secret = Deno.env.get('github_client_secret') || config().gi
 const snippetCache: Array<CodeSnippet> = []
 
 const goodUsers = [
-  'org:facebook',
-  'org:sveltejs',
   'user:steveruizok',
   'user:lukeed',
   'user:Rich-Harris',
@@ -23,7 +21,7 @@ const goodUsers = [
 export const choice = <T>(array: Array<T> | Readonly<Array<T>>): T | undefined =>
   array[Math.round(Math.random() * (array.length - 1))]
 
-async function findCodeSnippet() {
+async function findCodeSnippet(): Promise<CodeSnippet> {
   if (snippetCache.length) {
     return snippetCache.pop()!
   }
@@ -49,12 +47,17 @@ async function findCodeSnippet() {
       url: string
       git_url: string
       html_url: string
-      repository: { full_name: string }
+      repository: {
+        name: string
+        description: string
+        owner: { login: string; avatar_url: string; html_url: string }
+      }
       score: string
     }
     const files = (await filesResult.json().then(x => x.items)) as Array<File>
     const snippet = await Promise.race(
       files.map(async file => {
+        console.log('file', file.repository)
         const res = await fetch(file.git_url, { headers: { Authorization: authHeader } })
         const json = (await res.json()) as FileContents
         type FileContents = {
@@ -67,10 +70,8 @@ async function findCodeSnippet() {
         }
 
         const content = Base64.fromBase64String(json.content).toString()
-        console.log('content', content)
         const match = (regex: RegExp) => {
           let snippet: CodeSnippet | undefined
-          console.log('content.matchAll(regex)', [...content.matchAll(regex)])
           for (const validMatch of content.matchAll(regex)) {
             if (typeof validMatch?.index === 'number') {
               snippet = {
@@ -80,7 +81,15 @@ async function findCodeSnippet() {
                 html_url: file.html_url,
                 name: file.name,
                 path: file.path,
-                repository: file.repository.full_name,
+                repository: {
+                  name: file.repository.name,
+                  description: file.repository.description,
+                },
+                owner: {
+                  avatar_url: file.repository.owner.avatar_url,
+                  url: file.repository.owner.html_url,
+                  name: file.repository.owner.login,
+                },
                 lineNumber: content.substring(0, validMatch.index).split('\n').length,
               }
               snippetCache.push(snippet)
@@ -111,7 +120,8 @@ async function findCodeSnippet() {
       html_url: '',
       name: '',
       path: '',
-      repository: '',
+      repository: { name: '', description: '' },
+      owner: { avatar_url: '', url: '', name: '' },
       lineNumber: 0,
     }
   }
@@ -149,7 +159,8 @@ type CodeSnippet = {
   html_url: string
   name: string
   path: string
-  repository: string
+  repository: { name: string; description: string }
+  owner: { name: string; avatar_url: string; url: string }
   lineNumber: number
 }
 

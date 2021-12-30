@@ -73,10 +73,12 @@ p {
 a {
   color: var(--blue);
   text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
 }
 
 a:hover {
-  text-decoration: underline;
+  border-bottom: 1px solid var(--blue);
 }
 
 h1 {
