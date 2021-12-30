@@ -14,11 +14,8 @@
 
   const [send, receive] = crossfade()
 
-  console.log('name', name)
-
   function startGame(e: Event) {
     e.preventDefault()
-    console.log('name', name)
     if (name) {
       user.setName(name)
       state = 'game'
