@@ -1,4 +1,5 @@
 export enum ErrorCode {
+  NoSnippetFound = 'NoSnippetFound',
   RaceNotFound = 'RaceNotFound',
   RaceMemberNotFound = 'RaceMemberNotFound',
   RaceAlreadyExists = 'RaceAlreadyExists',

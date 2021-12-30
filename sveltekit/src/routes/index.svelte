@@ -3,155 +3,133 @@
 </script>
 
 <script lang="ts">
-  // import Counter from '$lib/Counter.svelte';
-  import { browser, prerendering } from '$app/env'
-  import Sockette from 'sockette'
-  import { DeferredPromise } from '../DeferredPromise'
-  import { onDestroy, onMount } from 'svelte'
-  import { Socket } from './socket'
+  import { quintOut } from 'svelte/easing'
+  import { crossfade } from 'svelte/transition'
+  import { goto } from '$app/navigation'
 
-  const uuid = (): string => crypto.randomUUID()
+  import { user } from './userStore'
 
-  let user: { userId: string; name?: string }
+  let name = $user.name || ''
 
-  let codeSnippet: string = ''
+  let state: 'initial' | 'enter_name' = 'initial'
 
-  let raceId: string = ''
-  let webSocket: Socket
-  let progress = 0
-  let members: Array<{ userId: string; name?: string; progress: number }> = []
-  let serverId: string = ''
-  let latency: number = 0
+  const [send, receive] = crossfade({
+    // duration: (d) => Math.sqrt(d * 200),
+    // easing: quintOut,
+    duration: 10000,
+    easing: (x) => x,
+  })
 
-  onMount(() => {
-    if (localStorage.getItem('user')) {
-      user = JSON.parse(localStorage.getItem('user'))
+  console.log('name', name)
+
+  function startGame() {
+    console.log('name', name)
+    if (name) {
+      user.setName(name)
+      goto('/race')
     } else {
-      user = { userId: uuid() }
-    }
-    localStorage.setItem('user', JSON.stringify(user))
-
-    const currentUrl = new URL(browser ? location.href : 'https://example.com')
-    const isProduction = currentUrl.protocol === 'https:' ? true : false
-    const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080'
-    // const wsUrl = 'wss://coderacer.deno.dev/'
-
-    webSocket = new Socket(wsUrl, {
-      onopen: async () => {
-        console.log('open')
-        request({ type: 'joinOrCreateRace', user })
-      },
-      onjson: (data) => {
-        if (data?.race) {
-          codeSnippet = data.race.codeSnippet.content
-          raceId = data.race.raceId
-          members = data.race.members
-        }
-        if (data?.type === 'pong') {
-          serverId = data.instanceId
-        }
-      },
-      onerror: (e) => {
-        console.log('Socket error', e)
-      },
-      onclose: (e) => {
-        console.log('Socket closed', e)
-      },
-      onreconnect: (e) => {
-        console.log('Socket reconnect')
-      },
-      ping
-    })
-  })
-
-  onDestroy(() => {
-    console.log('destroy')
-    if (webSocket?.ws.OPEN || webSocket?.ws.CONNECTING) {
-      webSocket?.close()
-    }
-  })
-
-  
-  function request<T extends { type: string }, Res = any>(data: T) {
-    const promise = new DeferredPromise<Res>()
-    const requestId = uuid()
-    const listener = (e: MessageEvent<any>) => {
-      if (!promise.isPending) return webSocket.ws.removeEventListener('message', listener)
-      const parsed = tryJsonParse(e.data)
-      if (!parsed) promise.reject(new Error(`Failed to parse "${e.data}"`))
-      if (parsed.requestId !== requestId) return
-      if (e.data.error) {
-        promise.reject(parsed)
-      } else {
-        promise.resolve(parsed)
-      }
-      webSocket.ws.removeEventListener('message', listener)
-    }
-    webSocket.ws.addEventListener('message', listener)
-    webSocket.json({ user, ...data, requestId })
-    return promise.promise
-  }
-
-  async function ping() {
-    const start = Date.now()
-    console.log('ping')
-    const res = await request({ type: 'ping', t: start })
-    serverId = res.serverId
-    latency = Date.now() - start
-  }
-
-  function joinOrCreateRace() {
-    request({ type: 'joinOrCreateRace' })
-  }
-
-  function handleKeyDown(e: KeyboardEvent) {
-    const expecting = codeSnippet[progress]
-    if (expecting) {
-      if (e.key === expecting) {
-        progress++
-        if (codeSnippet[progress] === '\n') {
-          while (/\s/.test(codeSnippet[progress])) {
-            progress++
-          }
-        }
-        request({ type: 'progress', progress, raceId })
-      }
-    }
-  }
-
-  function tryJsonParse(data: string) {
-    try {
-      return JSON.parse(data)
-    } catch {
-      return
+      state = 'enter_name'
     }
   }
 </script>
-
-<svelte:window on:keydown={handleKeyDown} />
 
 <svelte:head>
   <title>Home</title>
 </svelte:head>
 
 <section>
-  <div>
-    Server Id: {serverId}
-    Latency: {latency}
+  <h1>Typeracer</h1>
+  <h2>Competitive touch typing for programmers</h2>
+  <div class="container">
+    {#if state === 'initial'}
+      <button
+        class="common button"
+        on:click={startGame}
+        in:receive={{ key: 'cta' }}
+        out:send={{ key: 'cta' }}
+        tabindex="0"
+      >
+        <div in:receive={{ key: 'cta-text' }} out:send={{ key: 'cta-text' }}>Start Game</div>
+      </button>
+    {/if}
+
+    {#if state === 'enter_name'}
+      <div
+        tabindex="0"
+        class="common output"
+        on:click={startGame}
+        in:receive={{ key: 'cta' }}
+        out:send={{ key: 'cta' }}
+      >
+        <!-- <a href="/race">Enter your name</a> -->
+        <label>
+          Enter your name:
+          <input name="name" bind:value={name} autocomplete="name" autofocus placeholder="Enter your name" />
+        </label>
+        <button class="common button" in:receive={{ key: 'cta-text' }} out:send={{ key: 'cta-text' }}>Start Game</button
+        >
+      </div>
+    {/if}
   </div>
-
-  <button on:click={joinOrCreateRace}>Enter a typing race</button>
-  {#each members as member}
-    <div>{member.name || `Guest (${member.userId.substring(5, 8)})`}</div>
-    <progress value={member.progress} max={codeSnippet.length} style="width: 100%" />
-  {/each}
-
-  <pre style="color: white">
-    <span style="color: #50fa7b">{codeSnippet.substring(0, progress)}</span><span style="background-color: #00768f"
-      >{codeSnippet.substring(progress, progress + 1)}</span
-    ><span style="color: #8e9abe">{codeSnippet.substring(progress + 1)}</span>
-  </pre>
 </section>
 
-<style>
+<style lang="scss">
+  section {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    height: 63%;
+    max-height: 400px;
+    flex: 1;
+    margin: auto 0;
+  }
+
+  h1 {
+    font-family: var(--font-mono);
+  }
+  * {
+    /* border: 1px solid $green; */
+  }
+
+  .container {
+    display: grid;
+    height: 200px;
+  }
+
+  .common {
+    justify-content: center;
+    border-radius: 10px;
+    grid-area: 1/1/2/2;
+    display: flex;
+    padding: 20px;
+    margin: 0 auto;
+  }
+  .common:hover {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .button {
+    font-size: 20px;
+    background: var(--pink);
+    color: var(--primary-color);
+    width: 250px;
+    height: 70px;
+    &:hover {
+      background-color: var(--lighter-pink);
+    }
+    &:focus {
+      border: 1px solid var(--white);
+      box-shadow: 0px 0px 4px 1px var(--lightest-pink);
+    }
+  }
+
+  .output {
+    border: 4px solid var(--pink);
+    height: 200px;
+    width: 400px;
+    margin: 0 auto;
+  }
 </style>

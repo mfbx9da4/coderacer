@@ -1,10 +1,5 @@
 function noop() {}
 
-// export type JsonPrimitive = string | number | boolean | null
-// export type JsonObject = { [member: string]: JsonValue }
-// export type JsonArray = Array<JsonValue>
-// export type Json = JsonPrimitive | JsonObject | JsonArray
-
 function tryJsonParse(value: string) {
   try {
     return JSON.parse(value)
@@ -24,7 +19,7 @@ export interface SocketOptions {
   onerror?: (ev: Event) => unknown
   /** This callback will be executed periodically to keep the connection alive */
   ping?: (socket: Socket) => unknown
-  /** How often the ping should be callback should be executed */
+  /** How often the opts.ping should be callback should be executed */
   pingInterval?: number
 }
 
@@ -38,7 +33,7 @@ export class Socket {
   opts: Required<SocketOptions>
   ws: WebSocket
   url: string
-  heartbeat: ReturnType<typeof heartbeat>
+  heartbeat?: ReturnType<typeof heartbeat>
   private timer: ReturnType<typeof setTimeout> | undefined = 1
   private num = 0
 
@@ -60,7 +55,9 @@ export class Socket {
     }
     this.url = url
     this.ws = this.open()
-    this.heartbeat = heartbeat(() => this.opts.ping(this), this.opts.pingInterval)
+    if (opts.ping) {
+      this.heartbeat = heartbeat(() => this.opts.ping(this), this.opts.pingInterval)
+    }
   }
 
   open() {
@@ -76,7 +73,7 @@ export class Socket {
     ws.onopen = (e) => {
       this.opts.onopen(e)
       this.num = 0
-      this.heartbeat.start()
+      this.heartbeat?.start()
     }
 
     ws.onclose = (e) => {
@@ -84,7 +81,7 @@ export class Socket {
       const skipReconnect = [ErrorCodes.NormalClosure, ErrorCodes.GoingAway, ErrorCodes.NoStatusReceived]
       if (!skipReconnect.includes(e.code)) this.reconnect(e)
       this.opts.onclose(e)
-      this.heartbeat.stop()
+      this.heartbeat?.stop()
     }
 
     ws.onerror = (e) => {
@@ -126,21 +123,25 @@ export class Socket {
 
 function heartbeat(ping: () => unknown, pingInterval: number) {
   let pingTimeout: ReturnType<typeof setTimeout> | undefined
+
   function start() {
     if (pingTimeout) return
     ping()
     schedulePing()
   }
+
   function schedulePing() {
     pingTimeout = setTimeout(() => {
       ping()
       schedulePing()
     }, pingInterval)
   }
+
   function stop() {
     if (!pingTimeout) return
     clearTimeout(pingTimeout)
     pingTimeout = undefined
   }
+
   return { start, stop }
 }

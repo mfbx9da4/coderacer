@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Header from '$lib/header/Header.svelte'
+  // import Header from '$lib/header/Header.svelte'
   import '../app.css'
 </script>
 
@@ -21,7 +21,7 @@
     max-width: 1024px;
     margin: 0 auto;
     box-sizing: border-box;
-    color: white;
+    color: var(--text-color);
   }
 
   footer {
@@ -30,6 +30,7 @@
     justify-content: center;
     align-items: center;
     padding: 40px;
+    color: var(--text-color);
   }
 
   @media (min-width: 480px) {

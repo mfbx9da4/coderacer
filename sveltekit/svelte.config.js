@@ -1,4 +1,3 @@
-import adapter from '@sveltejs/adapter-auto'
 import preprocess from 'svelte-preprocess'
 
 import cloudflare from '@sveltejs/adapter-cloudflare'

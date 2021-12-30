@@ -1,14 +1,115 @@
-import { createAppAuth } from './deps.ts'
 import { BroadcastMethods } from './BroadcastMethods.ts'
 import { serve } from 'https://deno.land/std/http/server.ts'
 import { assert, ErrorCode } from './assert.ts'
+import { Base64 } from 'https://deno.land/x/bb64/mod.ts'
+import { config } from 'https://deno.land/x/dotenv/mod.ts'
 
-const auth = createAppAuth({
-  appId: 1,
-  privateKey: '-----BEGIN PRIVATE KEY-----\n...',
-  clientId: 'lv1.1234567890abcdef',
-  clientSecret: '1234567890abcdef12341234567890abcdef1234',
-})
+const github_client_id = Deno.env.get('github_client_id') || config().github_client_id
+const github_client_secret = Deno.env.get('github_client_secret') || config().github_client_secret
+
+const goodUsers = [
+  'org:facebook',
+  'org:sveltejs',
+  'user:steveruizok',
+  'user:lukeed',
+  'user:Rich-Harris',
+  'user:evanw',
+  'user:jakearchibald',
+  'user:surma',
+]
+
+export const choice = <T>(array: Array<T> | Readonly<Array<T>>): T | undefined =>
+  array[Math.round(Math.random() * (array.length - 1))]
+
+async function findCodeSnippet() {
+  try {
+    const start = Date.now()
+    const goodUser = choice(goodUsers)
+    console.log('goodUser', goodUser)
+    const params = Object.entries({
+      q: `function language:typescript language:javascript ${goodUser}`,
+      sort: 'indexed',
+      per_page: 2,
+    })
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join('&')
+    const authHeader = `Basic ${Base64.fromString(`${github_client_id}:${github_client_secret}`)}`
+    const filesResult = await fetch(`https://api.github.com/search/code?${params}`, {
+      headers: { Authorization: authHeader },
+    })
+    type File = {
+      name: string
+      path: string
+      sha: string
+      url: string
+      git_url: string
+      html_url: string
+      repository: { full_name: string }
+      score: string
+    }
+    const files = (await filesResult.json().then(x => x.items)) as Array<File>
+    const snippet = await Promise.race(
+      files.map(async file => {
+        const res = await fetch(file.git_url, { headers: { Authorization: authHeader } })
+        const json = (await res.json()) as FileContents
+        type FileContents = {
+          sha: string
+          node_id: string
+          size: string
+          url: string
+          content: string
+          encoding: string
+        }
+        // console.log('json', json)
+
+        const content = Base64.fromBase64String(json.content).toString()
+        const match = (regex: RegExp) => {
+          const matches = [...content.matchAll(regex)]
+          const oneOf = choice(matches.filter(x => typeof x.index === 'number'))
+          if (typeof oneOf?.index === 'number') {
+            return {
+              content: content.substring(oneOf.index, oneOf.index + 250),
+              startIndex: oneOf.index,
+              url: file.url,
+              html_url: file.html_url,
+              name: file.name,
+              path: file.path,
+              repository: file.repository.full_name,
+              lineNumber: content.substring(0, oneOf.index).split('\n').length,
+            }
+          }
+        }
+        const ans =
+          match(/^export function /g) ||
+          match(/^export function\* /g) ||
+          match(/^export async function /g) ||
+          match(/^export default function /g) ||
+          match(/^function /g) ||
+          match(/^async function /g) ||
+          match(/function /g)
+        return ans
+      }),
+    )
+
+    console.log('snippet', snippet, snippet?.html_url, 'took', Date.now() - start)
+    assert(snippet, ErrorCode.NoSnippetFound)
+    return snippet
+  } catch (error) {
+    console.error('findCodeSnippet:failed', error)
+    return {
+      content: `function hello() { console.log('hello') }`,
+      startIndex: 0,
+      url: '',
+      html_url: '',
+      name: '',
+      path: '',
+      repository: '',
+      lineNumber: 0,
+    }
+  }
+}
+
+await findCodeSnippet()
 
 type RaceId = `race_${string}`
 type UserId = `user_${string}`
@@ -41,23 +142,18 @@ type Race = {
   finishedAt?: number
   winner?: string
   codeSnippet: {
-    url: string
     content: string
     startIndex: number
+    url: string
+    html_url: string
+    name: string
+    path: string
+    repository: string
+    lineNumber: number
   }
   heartbeatAt: number
   members: Map<UserId, RaceMember>
-  toJSON: () => {
-    raceId: RaceId
-    startAt: number
-    createdAt: number
-    finishedAt: number | undefined
-    winner: string | undefined
-    codeSnippet: {
-      url: string
-      content: string
-      startIndex: number
-    }
+  toJSON: () => Exclude<Race, 'toJSON' | 'channel' | 'heartbeatAt'> & {
     members: RaceMember[]
   }
 }
@@ -121,7 +217,7 @@ function joinOrCreateRace(data: { requestId: string; user: User }) {
   createRace(data)
 }
 
-function createRace(data: { requestId: string; user: User }) {
+async function createRace(data: { requestId: string; user: User }) {
   const { user } = data
   const raceId: RaceId = `race_${crypto.randomUUID()}`
   assert(!races.get(raceId), 'Race already exists', ErrorCode.RaceAlreadyExists)
@@ -136,18 +232,7 @@ function createRace(data: { requestId: string; user: User }) {
     createdAt: Date.now(),
     heartbeatAt: Date.now(),
     //   TODO: fetch from github
-    codeSnippet: {
-      content: `function attempt(func, ...args) {
-  try {
-    return func(...args)
-  } catch (e) {
-    return isError(e) ? e : new Error(e)
-  }
-}
-      `,
-      startIndex: 0,
-      url: '',
-    },
+    codeSnippet: await findCodeSnippet(),
     members: new Map([[user.userId, { ...user, progress: 0 }]]),
     toJSON() {
       return {
@@ -158,7 +243,7 @@ function createRace(data: { requestId: string; user: User }) {
         winner: this.winner,
         codeSnippet: this.codeSnippet,
         members: [...this.members.values()],
-      }
+      } as any
     },
   }
 
@@ -214,15 +299,17 @@ function addSocket(socket: WebSocket, user?: User) {
   if (currentSocket !== socket) {
     const channel = new BroadcastChannel(userId)
     const destroy = () => {
+      console.log('destroy', userId)
       channel.close()
       userSockets.delete(userId)
     }
 
     channel.onmessage = e => {
       try {
+        console.log('send to user', userId, e.data)
         socket.send(JSON.stringify(e.data))
       } catch (error) {
-        console.error('Failed tosend to socket', e.data, error)
+        console.error('Failed to send to socket', e.data, error)
         destroy()
       }
     }
