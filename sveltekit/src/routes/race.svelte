@@ -187,12 +187,18 @@
     <h3 style="padding-bottom: 20px; ; font-size: 25px;">Coded by</h3>
     <div style="display: flex">
       <a
-        style="display: flex; flex-direction: column; align-items: center; "
+        style="display: flex; flex-direction: column; align-items: center;"
         target="_blank"
         rel="noreferrer"
         href={codeSnippet.owner.url}
       >
-        <img style="" width="100" height="100" src={codeSnippet.owner.avatar_url} alt={codeSnippet.owner.name} />
+        <img
+          style="borer-radius: 50%"
+          width="100"
+          height="100"
+          src={codeSnippet.owner.avatar_url}
+          alt={codeSnippet.owner.name}
+        />
         <div style="padding-top: 10px;">{codeSnippet.owner.name}</div>
       </a>
       <div style="display: flex; padding-left: 20px; flex-direction: column">

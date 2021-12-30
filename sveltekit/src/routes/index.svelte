@@ -32,7 +32,7 @@
 <div style="display: grid; width: 100vw; height: 100vh; grid-template: 1fr / 1fr">
   {#if state === 'initial' || state === 'enter_name'}
     <section out:fly={{ y: -200, duration: 200 }}>
-      <h1>Typeracer</h1>
+      <h1>Coderacer</h1>
       <h2>Competitive touch typing for programmers</h2>
 
       <div style="display: grid">
