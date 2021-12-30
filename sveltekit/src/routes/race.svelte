@@ -171,7 +171,7 @@
   </pre>
 
   <pre style="color: #8e9abe">{JSON.stringify(codeSnippet, null, 2)}</pre>
-  <a target="_blank" href={`${codeSnippet.html_url}#L${codeSnippet.lineNumber}`}>Source</a>
+  <!-- <a target="_blank" href={`${codeSnippet.html_url}#L${codeSnippet.lineNumber}`}>Source</a> -->
 </section>
 
 <style>
