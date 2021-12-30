@@ -156,7 +156,7 @@
     Need to 
    -->
 
-  <div style="margin: 0 auto; text-align: center">
+  <div style="margin: 0 auto; text-align: center; height: 20px">
     {phase === 'get_ready' ? 'Get ready' : phase === 'finding_peers' ? 'Waiting for more people...' : ' '}
   </div>
   <div
