@@ -67,10 +67,11 @@ async function findCodeSnippet() {
         }
 
         const content = Base64.fromBase64String(json.content).toString()
+        console.log('content', content)
         const match = (regex: RegExp) => {
-          const matches = [...content.matchAll(regex)].filter(x => typeof x.index === 'number')
           let snippet: CodeSnippet | undefined
-          for (const validMatch of matches) {
+          console.log('content.matchAll(regex)', [...content.matchAll(regex)])
+          for (const validMatch of content.matchAll(regex)) {
             if (typeof validMatch?.index === 'number') {
               snippet = {
                 content: content.substring(validMatch.index, validMatch.index + 250),
@@ -88,13 +89,13 @@ async function findCodeSnippet() {
           return snippet
         }
         const ans =
-          match(/^export function/g) ||
-          match(/^export async function/g) ||
-          match(/^export default function/g) ||
-          match(/^function/g) ||
-          match(/^async function/g) ||
-          match(/^export class /g) ||
-          match(/^module.exports = function/g)
+          match(/^export function/gm) ||
+          match(/^export async function/gm) ||
+          match(/^export default function/gm) ||
+          match(/^function/gm) ||
+          match(/^async function/gm) ||
+          match(/^export class /gm) ||
+          match(/^module\.exports = function/gm)
         return ans
       }),
     )
