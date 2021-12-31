@@ -4,6 +4,8 @@ import { assert, ErrorCode } from './assert.ts'
 import { Base64 } from 'https://deno.land/x/bb64/mod.ts'
 import { config } from 'https://deno.land/x/dotenv/mod.ts'
 
+// there is probably a better way of working out if in production mode
+const isProduction = Boolean(Deno.env.get('github_client_id'))
 const github_client_id = Deno.env.get('github_client_id') || config().github_client_id
 const github_client_secret = Deno.env.get('github_client_secret') || config().github_client_secret
 
@@ -21,6 +23,10 @@ const goodUsers = [
 export const choice = <T>(array: Array<T> | Readonly<Array<T>>): T | undefined =>
   array[Math.round(Math.random() * (array.length - 1))]
 
+export function isDefined<T>(x: T): x is Exclude<T, undefined> {
+  return Boolean(x)
+}
+
 async function findCodeSnippet(): Promise<CodeSnippet> {
   if (snippetCache.length) {
     return snippetCache.pop()!
@@ -31,10 +37,12 @@ async function findCodeSnippet(): Promise<CodeSnippet> {
     const goodUser = choice(goodUsers)
     const params = Object.entries({
       q: `function language:typescript language:javascript ${goodUser}`,
-      sort: 'indexed',
-      per_page: 2,
+      sort: choice(['indexed', undefined]),
+      per_page: isProduction ? 30 : 2,
+      page: choice([1, 2, 3])!,
     })
-      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .filter(([_, value]) => isDefined(value))
+      .map(([key, value]) => `${key}=${encodeURIComponent(value!)}`)
       .join('&')
     const authHeader = `Basic ${Base64.fromString(`${github_client_id}:${github_client_secret}`)}`
     const filesResult = await fetch(`https://api.github.com/search/code?${params}`, {
@@ -72,7 +80,7 @@ async function findCodeSnippet(): Promise<CodeSnippet> {
         const content = Base64.fromBase64String(json.content).toString()
         const match = (regex: RegExp) => {
           let snippet: CodeSnippet | undefined
-          for (const validMatch of content.matchAll(regex)) {
+          for (const validMatch of [...content.matchAll(regex)].reverse()) {
             if (typeof validMatch?.index === 'number') {
               snippet = {
                 content: content.substring(validMatch.index, validMatch.index + 250),

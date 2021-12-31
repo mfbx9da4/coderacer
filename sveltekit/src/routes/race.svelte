@@ -37,7 +37,8 @@
   }
   scheduleUpdateNow()
   $: timeRemaining = Math.round(Math.max(startAt - now, 0) / 1000)
-  $: phase = timeRemaining === 0 ? 'playing' : timeRemaining < 3 ? 'get_ready' : 'finding_peers'
+  $: phase = timeRemaining === 0 ? 'playing' : timeRemaining < 4 ? 'get_ready' : 'finding_peers'
+  $: phaseColor = phase == 'playing' ? 'var(--green)' : phase === 'get_ready' ? 'var(--yellow)' : 'var(--pink)'
 
   onMount(() => {
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
@@ -160,18 +161,27 @@
     {phase === 'get_ready' ? 'Get ready' : phase === 'finding_peers' ? 'Waiting for more people...' : ' '}
   </div>
   <div
-    style="display: flex; margin: 10px auto; border-radius: 50%; border: 8px solid {timeRemaining == 0
-      ? 'var(--green)'
-      : 'var(--pink)'}; width: 150px; height: 150px; justify-content: center; align-items: center"
+    style="display: flex; margin: 10px auto; border-radius: 50%; border: 8px solid {phaseColor}; width: 150px; height: 150px; justify-content: center; align-items: center"
   >
-    <div style={`font-size: 40px; color: ${timeRemaining == 0 ? 'var(--green)' : 'var(--pink)'}`}>
+    <div style="font-size: 40px; color: {phaseColor}">
       {timeRemaining || 'GO!'}
     </div>
   </div>
 
-  {#each members as member}
-    <div>{member.name || `Guest (${member.userId.substring(5, 8)})`}</div>
-    <progress value={member.progress} max={codeSnippetContent.length} style="width: 100%" />
+  {#each Array(5) as _, i}
+    <div style="height: 20px">
+      {#if members[i]}
+        {members[i].name || `Guest (${members[i].userId.substring(5, 8)})`}<span
+          style="color: var(--text-color-secondary);">{members[i]?.userId === user?.userId ? ' you' : ''}</span
+        >
+      {/if}
+    </div>
+    <progress
+      color="var(--pink)"
+      value={members[i]?.progress || 0}
+      max={codeSnippetContent.length}
+      style="width: 100%"
+    />
   {/each}
 
   <pre style="color: white">

@@ -29,7 +29,7 @@
   <title>Home</title>
 </svelte:head>
 
-<div style="display: grid; width: 100vw; height: 100vh; grid-template: 1fr / 1fr">
+<div style="display: grid; height: 100vh; grid-template: 1fr / 1fr">
   {#if state === 'initial' || state === 'enter_name'}
     <section out:fly={{ y: -200, duration: 200 }}>
       <h1>Coderacer</h1>
