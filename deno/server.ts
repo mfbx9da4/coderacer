@@ -83,7 +83,7 @@ async function findCodeSnippet(): Promise<CodeSnippet> {
           for (const validMatch of [...content.matchAll(regex)].reverse()) {
             if (typeof validMatch?.index === 'number') {
               snippet = {
-                content: content.substring(validMatch.index, validMatch.index + 10),
+                content: content.substring(validMatch.index, validMatch.index + (isProduction ? 250 : 20)),
                 startIndex: validMatch.index,
                 url: file.url,
                 html_url: file.html_url,
