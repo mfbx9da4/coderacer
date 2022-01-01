@@ -18,6 +18,9 @@ const goodUsers = [
   'user:evanw',
   'user:jakearchibald',
   'user:surma',
+  'user:gaearon',
+  'user:jaredpalmer',
+  'user:TomerAberbach',
 ]
 
 export const choice = <T>(array: Array<T> | Readonly<Array<T>>): T | undefined =>
