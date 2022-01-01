@@ -265,7 +265,6 @@ async function createRace(data: { requestId: string; user: User }) {
     startAt: Date.now() + 1000 * 13,
     createdAt: Date.now(),
     heartbeatAt: Date.now(),
-    //   TODO: fetch from github
     codeSnippet: await findCodeSnippet(),
     members: new Map([[user.userId, { ...user, progress: 0 }]]),
     toJSON() {
@@ -281,7 +280,7 @@ async function createRace(data: { requestId: string; user: User }) {
     },
   }
 
-  console.log('race', JSON.stringify(race))
+  // console.log('race', JSON.stringify(race))
 
   races.set(raceId, race)
 
