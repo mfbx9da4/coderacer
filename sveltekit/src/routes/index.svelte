@@ -4,9 +4,9 @@
 
 <script lang="ts">
   import { fly } from 'svelte/transition'
-  import { crossfade } from './crossfade'
+  import { crossfade } from '../lib/crossfade'
   import Race from './race.svelte'
-  import { user } from './userStore'
+  import { user } from '../lib/userStore'
 
   let name = $user.name || ''
 

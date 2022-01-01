@@ -8,12 +8,12 @@
   import { onDestroy, onMount } from 'svelte'
   import { DeferredPromise } from '../lib/DeferredPromise'
   import { Socket } from '../lib/socket'
-  import { crossfade } from './crossfade'
-  import { user as userStore } from './userStore'
+  import { crossfade } from '../lib/crossfade'
+  import { user as userStore } from '../lib/userStore'
   import type { RaceMember, SerializedRace } from '../../../deno/server'
   import { xlink_attr } from 'svelte/internal'
   import { get } from 'svelte/store'
-  import Footer from './Footer.svelte'
+  import Footer from '../lib/Footer.svelte'
 
   const user = $userStore
 
