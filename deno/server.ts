@@ -213,7 +213,7 @@ newRaceChannel.onmessage = e => {
 }
 
 function broadcastNewRace(nextRace: UpcomingRace) {
-  newRaceChannel.postMessage({ type: 'newRace', ...nextRace })
+  newRaceChannel.postMessage({ type: 'race.created', ...nextRace })
 }
 
 function findNextRace() {
