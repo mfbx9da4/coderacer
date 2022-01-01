@@ -9,7 +9,7 @@ const config = {
   preprocess: preprocess(),
 
   kit: {
-    adapter: cloudflare(),
+    adapter: cloudflare({}),
     // hydrate the <div id="svelte"> element in src/app.html
     target: '#svelte',
   },

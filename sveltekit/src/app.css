@@ -6,10 +6,12 @@
     'Helvetica Neue', sans-serif;
   --font-mono: 'Fira Mono', monospace;
   --white: #ffffff;
+  --background-color: hsl(236.4, 22.8%, 28.4%);
   --primary-color: hsl(231.4, 14.9%, 18.4%);
   --secondary-color: hsl(234.5, 14.3%, 15.1%);
   --tertiary-color: hsl(230, 14.8%, 23.9%);
   --yellow: rgb(241, 250, 140);
+  --purple: rgb(189, 147, 249);
   --pink: hsl(315.6, 63.4%, 67.8%);
   --lighter-pink: hsl(315.6, 63.4%, 73%);
   --lightest-pink: hsl(315.6, 63.4%, 83%);
@@ -32,7 +34,7 @@
 body {
   min-height: 100vh;
   margin: 0;
-  background-color: var(--primary-color);
+  background-color: var(--secondary-color);
   color: var(--text-color);
 }
 
@@ -94,9 +96,7 @@ h2 {
 pre {
   font-size: 16px;
   font-family: var(--font-mono);
-  background-color: rgba(40, 42, 54);
   border-radius: 3px;
-  padding: 0.5em;
   overflow-x: auto;
   color: var(--text-color);
 }

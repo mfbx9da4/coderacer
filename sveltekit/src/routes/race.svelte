@@ -11,6 +11,8 @@
   import { crossfade } from './crossfade'
   import { user as userStore } from './userStore'
   import type { RaceMember, SerializedRace } from '../../../deno/server'
+  import { xlink_attr } from 'svelte/internal'
+  import { get } from 'svelte/store'
 
   const user = $userStore
 
@@ -20,11 +22,11 @@
 
   let codeSnippetContent: string = ''
   let codeSnippet: SerializedRace['codeSnippet'] | undefined
-
+  let wordCount: number = 0
   let raceId: string = ''
   let webSocket: Socket
   let progress = 0
-  let members: Array<RaceMember> = []
+  let members: Array<RaceMember & { progressPercent: number; wpm: number; place: number }> = []
   let serverId: string = ''
   let latency: number = 0
   let startAt: number = 0
@@ -39,12 +41,16 @@
   $: timeRemaining = Math.round(Math.max(startAt - now, 0) / 1000)
   $: phase = timeRemaining === 0 ? 'playing' : timeRemaining < 4 ? 'get_ready' : 'finding_peers'
   $: phaseColor = phase == 'playing' ? 'var(--green)' : phase === 'get_ready' ? 'var(--yellow)' : 'var(--pink)'
+  $: finished = progress === codeSnippetContent.length
+  $: winner = members.find((m) => m.finishedAt)
+  $: youWon = winner?.userId === user?.userId
 
   onMount(() => {
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
     const isProduction = currentUrl.protocol === 'https:' ? true : false
     const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080'
-    // const wsUrl = 'wss://coderacer.deno.dev/'
+
+    const getWordCount = (x: string) => x.split(/\s+/).length
 
     webSocket = new Socket(wsUrl, {
       onopen: async () => {
@@ -55,10 +61,33 @@
         if (data?.race) {
           const race: SerializedRace = data?.race
           codeSnippetContent = race.codeSnippet.content
+          wordCount = getWordCount(codeSnippetContent)
           codeSnippet = race.codeSnippet
           raceId = race.raceId
           startAt = race.startAt
-          members = race.members
+          const formattedMembers = race.members
+          const myIndex = formattedMembers.findIndex((x) => x.userId === user?.userId)
+          if (myIndex > -1) {
+            const [me] = formattedMembers.splice(myIndex, 1)
+            formattedMembers.unshift(me)
+          }
+
+          const sortedMembers = formattedMembers.sort((a, b) => {
+            if (a.finishedAt && b.finishedAt) return a.finishedAt - b.finishedAt
+            if (a.finishedAt) return -1
+            if (b.finishedAt) return 1
+            return 0
+          })
+
+          members = formattedMembers.map((x) => {
+            const completedWords = getWordCount(codeSnippetContent.substring(0, x.progress))
+            return {
+              ...x,
+              progressPercent: Math.round((x.progress / codeSnippetContent.length) * 100),
+              wpm: Math.max(Math.round(completedWords / ((Date.now() - startAt) / 1000 / 60)), 0),
+              place: sortedMembers.indexOf(x) + 1,
+            }
+          })
         }
         if (data?.type === 'pong') {
           serverId = data.instanceId
@@ -138,6 +167,8 @@
       return
     }
   }
+
+  const colors = ['var(--pink)', 'var(--yellow)', 'var(--blue)', 'var(--green)', 'var(--purple)']
 </script>
 
 <svelte:window on:keydown={handleKeyDown} />
@@ -154,7 +185,9 @@
     Need success state
     Need connection status
     Need if got enough users start the game already (updateGame)
-    Need to 
+    Need to restore game on refresh if already in game
+    Need fake users
+    Need animals
    -->
 
   <div style="margin: 0 auto; text-align: center; height: 20px">
@@ -168,23 +201,34 @@
     </div>
   </div>
 
-  {#each Array(5) as _, i}
-    <div style="height: 20px">
+  <!-- {#each Array(5) as _, i} -->
+  {#each members as member, i}
+    <div style="height: 20px; margin-top: 5px">
       {#if members[i]}
         {members[i].name || `Guest (${members[i].userId.substring(5, 8)})`}<span
           style="color: var(--text-color-secondary);">{members[i]?.userId === user?.userId ? ' you' : ''}</span
         >
       {/if}
     </div>
-    <progress
-      color="var(--pink)"
-      value={members[i]?.progress || 0}
-      max={codeSnippetContent.length}
-      style="width: 100%"
-    />
+    <div style="display: flex; flex-direction: row">
+      <div style="position: relative; height: 10px; margin-top: 10px; flex: 1;">
+        <div
+          style="position: absolute; border-radius: 10px; width: 100%; background: var(--tertiary-color); height: 10px;"
+        />
+        <div
+          style="position: absolute; border-radius: 10px; width: {members[i].progressPercent}%; background: {colors[
+            i
+          ]}; height: 10px; transition: width 0.2s cubic-bezier(0, 1.05, 0.45, 0.54) 0s;"
+        />
+      </div>
+      <div style="padding-left: 20px">
+        <div>{members[i].wpm} wpm</div>
+        <div>{member?.finishedAt ? `${members[i].place} place` : ''}</div>
+      </div>
+    </div>
   {/each}
 
-  <pre style="color: white">
+  <pre style="color: white; background: var(--primary-color); padding: 20px;">
     <span style="color: #50fa7b">{codeSnippetContent.substring(0, progress)}</span><span
       style="background-color: #00768f">{codeSnippetContent.substring(progress, progress + 1)}</span
     ><span style="color: #8e9abe">{codeSnippetContent.substring(progress + 1)}</span>
@@ -192,9 +236,9 @@
 
   <!-- show code snippet avatar url who wrote it and link to source code -->
   {#if codeSnippet}
-    <div style="border: 1px solid var(--white); margin: 40px 0; " />
+    <div style="border: 1px solid var(--primary-color); margin: 40px 0; " />
 
-    <h3 style="padding-bottom: 20px; ; font-size: 25px;">Coded by</h3>
+    <h3 style="padding-bottom: 20px; font-size: 25px;">Coded by</h3>
     <div style="display: flex">
       <a
         style="display: flex; flex-direction: column; align-items: center;"
