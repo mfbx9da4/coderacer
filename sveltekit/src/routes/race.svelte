@@ -6,13 +6,14 @@
   import { browser } from '$app/env'
   import { v4 } from '@lukeed/uuid'
   import { onDestroy, onMount } from 'svelte'
-  import { DeferredPromise } from '../DeferredPromise'
+  import { DeferredPromise } from '../lib/DeferredPromise'
   import { Socket } from '../lib/socket'
   import { crossfade } from './crossfade'
   import { user as userStore } from './userStore'
   import type { RaceMember, SerializedRace } from '../../../deno/server'
   import { xlink_attr } from 'svelte/internal'
   import { get } from 'svelte/store'
+  import Footer from './Footer.svelte'
 
   const user = $userStore
 
@@ -22,7 +23,6 @@
 
   let codeSnippetContent: string = ''
   let codeSnippet: SerializedRace['codeSnippet'] | undefined
-  let finishedAt: number | undefined
   let wordCount: number = 0
   let raceId: string = ''
   let webSocket: Socket
@@ -192,18 +192,10 @@
 <svelte:window on:keydown={handleKeyDown} />
 
 <svelte:head>
-  <title>Home</title>
+  <title>Coderacer</title>
 </svelte:head>
 
 <section style="padding: 20px">
-  <!-- 
-    Need connection status
-    Need if got enough users start the game already (updateGame)
-    Need to restore game on refresh if already in game
-    Need fake users
-    Need animals
-   -->
-
   <div style="margin: 0 auto; text-align: center; height: 20px">
     {phase === 'won'
       ? 'You won!'
@@ -318,6 +310,10 @@
     </div>
   {/if}
 </section>
+
+<div style="position: absolute; bottom: 30px; width: 100%;">
+  <Footer />
+</div>
 
 <style>
 </style>

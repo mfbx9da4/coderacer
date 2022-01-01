@@ -26,7 +26,7 @@
 </script>
 
 <svelte:head>
-  <title>Home</title>
+  <title>Coderacer</title>
 </svelte:head>
 
 <div style="display: grid; height: 100vh; grid-template: 1fr / 1fr">
@@ -67,7 +67,7 @@
     <main
       in:receive={{ key: 'main' }}
       out:send={{ key: 'main' }}
-      style=" border: 4px solid var(--pink); border-radius: 4px; grid-area: 1/1/1/1; width: calc(100% - 40px); max-width: 1200px; margin: 20px auto;"
+      style="position: relative; border: 4px solid var(--pink); border-radius: 4px; grid-area: 1/1/1/1; width: calc(100% - 40px); max-width: 1200px; margin: 20px auto;"
     >
       <Race />
     </main>
