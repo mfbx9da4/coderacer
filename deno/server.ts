@@ -65,7 +65,7 @@ async function findCodeSnippet(): Promise<CodeSnippet> {
     const files = (await filesResult.json().then(x => x.items)) as Array<File>
     const snippet = await Promise.race(
       files.map(async file => {
-        console.log('file', file.repository)
+        // console.log('file', file.repository)
         const res = await fetch(file.git_url, { headers: { Authorization: authHeader } })
         const json = (await res.json()) as FileContents
         type FileContents = {
@@ -83,7 +83,7 @@ async function findCodeSnippet(): Promise<CodeSnippet> {
           for (const validMatch of [...content.matchAll(regex)].reverse()) {
             if (typeof validMatch?.index === 'number') {
               snippet = {
-                content: content.substring(validMatch.index, validMatch.index + 250),
+                content: content.substring(validMatch.index, validMatch.index + 10),
                 startIndex: validMatch.index,
                 url: file.url,
                 html_url: file.html_url,
@@ -116,7 +116,7 @@ async function findCodeSnippet(): Promise<CodeSnippet> {
         return ans
       }),
     )
-    console.log('snippet', snippet, snippet?.html_url, 'took', Date.now() - start)
+    // console.log('snippet', snippet, snippet?.html_url, 'took', Date.now() - start)
     assert(snippet, ErrorCode.NoSnippetFound)
     return snippet
   } catch (error) {
@@ -330,14 +330,12 @@ function addSocket(socket: WebSocket, user?: User) {
   if (currentSocket !== socket) {
     const channel = new BroadcastChannel(userId)
     const destroy = () => {
-      console.log('destroy', userId)
       channel.close()
       userSockets.delete(userId)
     }
 
     channel.onmessage = e => {
       try {
-        console.log('send to user', userId, e.data)
         socket.send(JSON.stringify(e.data))
       } catch (error) {
         console.error('Failed to send to socket', e.data, error)
@@ -366,7 +364,7 @@ await serve(
           assert(data, 'missing data', e.data)
           addSocket(socket, data.user as User)
 
-          console.log('[request]', data)
+          // console.log('[request]', data)
 
           data.requestId = data.requestId || crypto.randomUUID()
 

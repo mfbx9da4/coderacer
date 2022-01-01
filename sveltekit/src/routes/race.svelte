@@ -22,6 +22,7 @@
 
   let codeSnippetContent: string = ''
   let codeSnippet: SerializedRace['codeSnippet'] | undefined
+  let finishedAt: number | undefined
   let wordCount: number = 0
   let raceId: string = ''
   let webSocket: Socket
@@ -39,18 +40,36 @@
   }
   scheduleUpdateNow()
   $: timeRemaining = Math.round(Math.max(startAt - now, 0) / 1000)
-  $: phase = timeRemaining === 0 ? 'playing' : timeRemaining < 4 ? 'get_ready' : 'finding_peers'
-  $: phaseColor = phase == 'playing' ? 'var(--green)' : phase === 'get_ready' ? 'var(--yellow)' : 'var(--pink)'
   $: finished = progress === codeSnippetContent.length
   $: winner = members.find((m) => m.finishedAt)
   $: youWon = winner?.userId === user?.userId
+  $: phase =
+    finished && youWon
+      ? 'won'
+      : finished && !youWon
+      ? 'finished'
+      : timeRemaining === 0
+      ? 'playing'
+      : timeRemaining < 4
+      ? 'get_ready'
+      : 'finding_peers'
+  $: phaseColor =
+    phase === 'won'
+      ? 'gold'
+      : phase == 'finished'
+      ? 'var(--text-color-secondary)'
+      : phase === 'playing'
+      ? 'var(--green)'
+      : phase === 'get_ready'
+      ? 'var(--yellow)'
+      : 'var(--pink)'
 
   onMount(() => {
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
     const isProduction = currentUrl.protocol === 'https:' ? true : false
     const wsUrl = isProduction ? 'wss://coderacer.deno.dev/' : 'ws://localhost:8080'
 
-    const getWordCount = (x: string) => x.split(/\s+/).length
+    const getWordCount = (x: string) => x.split(/\s+/).length - 1
 
     webSocket = new Socket(wsUrl, {
       onopen: async () => {
@@ -84,7 +103,7 @@
             return {
               ...x,
               progressPercent: Math.round((x.progress / codeSnippetContent.length) * 100),
-              wpm: Math.max(Math.round(completedWords / ((Date.now() - startAt) / 1000 / 60)), 0),
+              wpm: Math.max(Math.round(completedWords / (((x.finishedAt || Date.now()) - startAt) / 1000 / 60)), 0),
               place: sortedMembers.indexOf(x) + 1,
             }
           })
@@ -135,7 +154,6 @@
 
   async function ping() {
     const start = Date.now()
-    console.log('ping')
     const res = await request({ type: 'ping', t: start })
     serverId = res.serverId
     latency = Date.now() - start
@@ -179,10 +197,6 @@
 
 <section style="padding: 20px">
   <!-- 
-    Need countdown
-    Need finding users
-    Need wpm
-    Need success state
     Need connection status
     Need if got enough users start the game already (updateGame)
     Need to restore game on refresh if already in game
@@ -191,44 +205,72 @@
    -->
 
   <div style="margin: 0 auto; text-align: center; height: 20px">
-    {phase === 'get_ready' ? 'Get ready' : phase === 'finding_peers' ? 'Waiting for more people...' : ' '}
+    {phase === 'won'
+      ? 'You won!'
+      : phase === 'get_ready'
+      ? 'Get ready'
+      : phase === 'finding_peers'
+      ? 'Waiting for more people...'
+      : ' '}
+    {#if phase === 'won' || phase === 'finished'}
+      <a
+        href="/race"
+        style="background: none; color: var(--blue)"
+        on:click={() => {
+          progress = 0
+          webSocket.json({ type: 'joinOrCreateRace', user })
+        }}>Play another</a
+      >
+    {/if}
   </div>
   <div
     style="display: flex; margin: 10px auto; border-radius: 50%; border: 8px solid {phaseColor}; width: 150px; height: 150px; justify-content: center; align-items: center"
   >
     <div style="font-size: 40px; color: {phaseColor}">
-      {timeRemaining || 'GO!'}
+      {phase === 'finished' ? 'END' : phase === 'won' ? '🏆' : timeRemaining ? timeRemaining : 'GO!'}
     </div>
   </div>
 
-  <!-- {#each Array(5) as _, i} -->
-  {#each members as member, i}
-    <div style="height: 20px; margin-top: 5px">
-      {#if members[i]}
-        {members[i].name || `Guest (${members[i].userId.substring(5, 8)})`}<span
-          style="color: var(--text-color-secondary);">{members[i]?.userId === user?.userId ? ' you' : ''}</span
-        >
-      {/if}
-    </div>
-    <div style="display: flex; flex-direction: row">
-      <div style="position: relative; height: 10px; margin-top: 10px; flex: 1;">
-        <div
-          style="position: absolute; border-radius: 10px; width: 100%; background: var(--tertiary-color); height: 10px;"
-        />
-        <div
-          style="position: absolute; border-radius: 10px; width: {members[i].progressPercent}%; background: {colors[
-            i
-          ]}; height: 10px; transition: width 0.2s cubic-bezier(0, 1.05, 0.45, 0.54) 0s;"
-        />
+  <div style="margin: 20px 0;">
+    {#each members as member, i}
+      <!-- <div style="height: 20px; margin-top: 5px" /> -->
+      <div style="display: flex; flex-direction: row; margin-top: 15px;">
+        <div style="flex: 1;">
+          <div>
+            {member.name || `Guest (${member.userId.substring(5, 8)})`}<span style="color: var(--text-color-secondary);"
+              >{member?.userId === user?.userId ? ' you' : ''}</span
+            >
+          </div>
+          <div style="position: relative; height: 10px; margin-top: 10px">
+            <div
+              style="position: absolute; border-radius: 10px; width: 100%; background: var(--tertiary-color); height: 10px;"
+            />
+            <div
+              style="position: absolute; border-radius: 10px; width: {member.progressPercent}%; background: {colors[
+                i
+              ]}; height: 10px; transition: width 0.2s cubic-bezier(0, 1.05, 0.45, 0.54) 0s;"
+            />
+          </div>
+        </div>
+        <div style="padding-left: 20px; width: 120px">
+          <div style="height: 20px">
+            {!member.finishedAt
+              ? ''
+              : member.place === 1
+              ? '1st Place 🏆'
+              : member.place === 2
+              ? '2nd Place 🥈'
+              : member.place === 3
+              ? '3rd Place 🥉'
+              : `${member.place}th Place`}
+          </div>
+          <div>{member.wpm} wpm</div>
+        </div>
       </div>
-      <div style="padding-left: 20px">
-        <div>{members[i].wpm} wpm</div>
-        <div>{member?.finishedAt ? `${members[i].place} place` : ''}</div>
-      </div>
-    </div>
-  {/each}
+    {/each}
+  </div>
 
-  <pre style="color: white; background: var(--primary-color); padding: 20px;">
+  <pre style="color: white; background: var(--primary-color); padding: 20px; margin: 0">
     <span style="color: #50fa7b">{codeSnippetContent.substring(0, progress)}</span><span
       style="background-color: #00768f">{codeSnippetContent.substring(progress, progress + 1)}</span
     ><span style="color: #8e9abe">{codeSnippetContent.substring(progress + 1)}</span>
