@@ -107,11 +107,12 @@ export async function usage() {
   // If the counter is on this deno instance, it will short circuit and return the current state.
   // If the counter has not yet been initialized or the origin deno instance has died, this will
   // throw with a timeout error.
-  const counterInstance = globalCounters.get('some-uuid')
+  const counterInstance = globalCounters.get(counterId)
   console.log('currentCount', await counterInstance.currentCount())
 
   // We can also increment and decrement the counter on it's origin deno instance.
   await counterInstance.increment()
+  await counterInstance.increment()
   await counterInstance.decrement()
-  console.log('currentCount', await counterInstance.currentCount())
+  console.log('currentCount2', await counterInstance.currentCount())
 }
