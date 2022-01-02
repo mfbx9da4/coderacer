@@ -1,5 +1,5 @@
 # coderacer
-Competitive touch typing for JavaScript programmers
+Competitive touch typing for JavaScript / Typescript programmers
 
 
 [Deployed here coderacer.pages.dev](https://coderacer.pages.dev)
