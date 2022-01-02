@@ -1,6 +1,7 @@
 // Some html just for debugging the requests and responses of web sockets
 export function html() {
   return /* html */ `
+  <pre ></pre>
 <script>
   const userId =  sessionStorage.getItem('userId') || 'user_' +crypto.randomUUID()
   const protocol = new URL(location.href).protocol === 'http:' ? 'ws://' : 'wss://';
