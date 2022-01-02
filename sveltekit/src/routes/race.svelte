@@ -6,14 +6,13 @@
   import { browser } from '$app/env'
   import { v4 } from '@lukeed/uuid'
   import { onDestroy, onMount } from 'svelte'
-  import { DeferredPromise } from '../lib/DeferredPromise'
-  import { Socket } from '../lib/socket'
+  import type { RaceMember, SerializedRace } from '../../../deno/src/types'
   import { crossfade } from '../lib/crossfade'
-  import { user as userStore } from '../lib/userStore'
-  import type { RaceMember, SerializedRace } from '../../../deno/server'
-  import { xlink_attr } from 'svelte/internal'
-  import { get } from 'svelte/store'
+  import { DeferredPromise } from '../lib/DeferredPromise'
   import Footer from '../lib/Footer.svelte'
+  import { Socket } from '../lib/socket'
+  import { user as userStore } from '../lib/userStore'
+  import Asdf from './asdf.svelte'
 
   const user = $userStore
 
@@ -43,16 +42,17 @@
   $: finished = progress === codeSnippetContent.length
   $: winner = members.find((m) => m.finishedAt)
   $: youWon = winner?.userId === user?.userId
-  $: phase =
-    finished && youWon
-      ? 'won'
-      : finished && !youWon
-      ? 'finished'
-      : timeRemaining === 0
-      ? 'playing'
-      : timeRemaining < 4
-      ? 'get_ready'
-      : 'finding_peers'
+  $: phase = !raceId
+    ? 'loading'
+    : finished && youWon
+    ? 'won'
+    : finished && !youWon
+    ? 'finished'
+    : timeRemaining === 0
+    ? 'playing'
+    : timeRemaining < 4
+    ? 'get_ready'
+    : 'finding_peers'
   $: phaseColor =
     phase === 'won'
       ? 'gold'
@@ -219,7 +219,15 @@
     style="display: flex; margin: 10px auto; border-radius: 50%; border: 8px solid {phaseColor}; width: 150px; height: 150px; justify-content: center; align-items: center"
   >
     <div style="font-size: 40px; color: {phaseColor}">
-      {phase === 'finished' ? 'END' : phase === 'won' ? '🏆' : timeRemaining ? timeRemaining : 'GO!'}
+      {phase === 'loading'
+        ? '...'
+        : phase === 'finished'
+        ? 'END'
+        : phase === 'won'
+        ? '🏆'
+        : timeRemaining
+        ? timeRemaining
+        : 'GO!'}
     </div>
   </div>
 
