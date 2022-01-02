@@ -46,5 +46,6 @@ export function sendToRaceMembers<T extends WebSocketResponse>(race: Race, data:
 }
 
 export function sendToUser<T extends WebSocketResponse>(userId: UserId, data: T) {
-  globalUserSockets.get(userId).send(data)
+  console.log('userId, data', userId, data)
+  return globalUserSockets.get(userId).send(data)
 }
