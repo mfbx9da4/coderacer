@@ -31,6 +31,7 @@ export class BroadcastMethods<T extends Record<string, Function>> {
       const requestId = data.requestId
       const fn = data.fn
       const args = data.args
+      console.log('data', data)
       assert(requestId && typeof requestId === 'string', `missing requestId for "${channelId}"`)
       assert(typeof fn === 'string', `missing fn for "${channelId}"`)
       assert(Array.isArray(args), `missing args for "${channelId}"`)
