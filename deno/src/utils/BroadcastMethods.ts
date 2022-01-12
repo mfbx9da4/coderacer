@@ -31,11 +31,11 @@ export class BroadcastMethods<T extends Record<string, Function>> {
       const requestId = data.requestId
       const fn = data.fn
       const args = data.args
-      console.log('data', data)
-      assert(requestId && typeof requestId === 'string', `missing requestId for "${channelId}"`)
-      assert(typeof fn === 'string', `missing fn for "${channelId}"`)
-      assert(Array.isArray(args), `missing args for "${channelId}"`)
-      assert(methods[fn], `missing method "${fn}" for "${channelId}"`)
+      if (!requestId) return
+      if (typeof requestId !== 'string') if (!fn) return
+      if (typeof fn !== 'string') return
+      if (!Array.isArray(args)) return
+      if (!methods[fn]) return
       try {
         const result = await methods[fn](...args)
         chan.postMessage({ result, requestId })
