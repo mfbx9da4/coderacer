@@ -40,7 +40,9 @@ export class BroadcastMethods<T extends Record<string, Function>> {
         const result = await methods[fn](...args)
         chan.postMessage({ result, requestId })
       } catch (error) {
-        chan.postMessage({ error, requestId })
+        try{
+            chan.postMessage({ error, requestId })
+        }catch(e){}
       }
     }
 
