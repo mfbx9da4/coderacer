@@ -40,11 +40,11 @@ export class BroadcastMethods<T extends Record<string, Function>> {
         const result = await methods[fn](...args)
         chan.postMessage({ result, requestId })
       } catch (error) {
-        console.error('Can\'t post results, trying to send the error', error)
-        try{
-            chan.postMessage({ error, requestId })
-        }catch(e){
-            console.error('BroadcastChannel is dead failed to send error', e)
+        console.error("Can't post results, trying to send the error", error)
+        try {
+          chan.postMessage({ error, requestId })
+        } catch (e) {
+          console.error('BroadcastChannel is dead failed to send error', e)
         }
       }
     }

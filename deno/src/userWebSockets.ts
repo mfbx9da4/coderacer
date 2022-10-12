@@ -19,8 +19,8 @@ export function addWebSocket(socket: WebSocket, user?: User) {
   if (currentSocket !== socket) {
     const send = <T extends WebSocketResponse>(data: T) => {
       try {
-        if(socket.readyState === socket.OPEN){
-            socket.send(JSON.stringify(data))
+        if (socket.readyState === socket.OPEN) {
+          socket.send(JSON.stringify(data))
         }
       } catch (error) {
         console.error('Failed to send to socket', data, error)
