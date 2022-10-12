@@ -65,7 +65,7 @@
       : 'var(--pink)'
 
   $: {
-    //when the phase swap to playing focus the hidden input
+    // when the phase swap to playing focus the hidden input
     if (phase === 'playing') {
       hiddenInput.focus()
     }
@@ -171,15 +171,15 @@
   let previousHiddenInputValue = ''
 
   function handleHiddenInput(e: Event) {
-    //keep track of previous hidden input and current hidden input
-    //to calculate the delta between the two
+    // keep track of previous hidden input and current hidden input
+    // to calculate the delta between the two
     previousHiddenInputValue = hiddenInputValue
     hiddenInputValue = (e.target as HTMLInputElement).value
     if (phase !== 'playing') return
-    //if the previous length is less than the current length return
-    //to keep the same behavior of the keydown event previously implemented
+    // if the previous length is less than the current length return
+    // to keep the same behavior of the keydown event previously implemented
     if (hiddenInputValue.length < previousHiddenInputValue.length) return
-    //replace all the previous value from the current value to get the new key
+    // replace all the previous value from the current value to get the new key
     const key = hiddenInputValue.replace(previousHiddenInputValue, '')
     const expecting = codeSnippetContent[progress]
     if (expecting) {
@@ -208,7 +208,7 @@
 
 <svelte:window
   on:focus={() => {
-    //on window focus focus the input (to avoid losing focus)
+    // on window focus focus the input (to avoid losing focus)
     hiddenInput.focus()
   }}
 />
