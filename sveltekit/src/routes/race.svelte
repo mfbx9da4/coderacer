@@ -64,6 +64,13 @@
       ? 'var(--yellow)'
       : 'var(--pink)'
 
+  $: {
+    // when the phase swap to playing focus the hidden input
+    if (phase === 'playing') {
+      hiddenInput.focus()
+    }
+  }
+
   onMount(() => {
     const currentUrl = new URL(browser ? location.href : 'https://example.com')
     const isProduction = currentUrl.protocol === 'https:' ? true : false
@@ -159,14 +166,24 @@
     latency = Date.now() - start
   }
 
-  function handleKeyDown(e: KeyboardEvent) {
+  let hiddenInput: HTMLInputElement
+  let hiddenInputValue = ''
+  let previousHiddenInputValue = ''
+
+  function handleHiddenInput(e: Event) {
+    // keep track of previous hidden input and current hidden input
+    // to calculate the delta between the two
+    previousHiddenInputValue = hiddenInputValue
+    hiddenInputValue = (e.target as HTMLInputElement).value
     if (phase !== 'playing') return
-    if (!e.metaKey) {
-      e.preventDefault()
-    }
+    // if the previous length is less than the current length return
+    // to keep the same behavior of the keydown event previously implemented
+    if (hiddenInputValue.length < previousHiddenInputValue.length) return
+    // replace all the previous value from the current value to get the new key
+    const key = hiddenInputValue.replace(previousHiddenInputValue, '')
     const expecting = codeSnippetContent[progress]
     if (expecting) {
-      if (e.key === expecting) {
+      if (key === expecting) {
         progress++
         if (codeSnippetContent[progress] === '\n') {
           while (/\s/.test(codeSnippetContent[progress])) {
@@ -189,12 +206,27 @@
   const colors = ['var(--pink)', 'var(--yellow)', 'var(--blue)', 'var(--green)', 'var(--purple)']
 </script>
 
-<svelte:window on:keydown={handleKeyDown} />
+<svelte:window
+  on:focus={() => {
+    // on window focus focus the input (to avoid losing focus)
+    hiddenInput.focus()
+  }}
+/>
 
 <svelte:head>
   <title>Coderacer</title>
 </svelte:head>
-
+<!-- preventing pasting into the input and blurring -->
+<input
+  bind:this={hiddenInput}
+  type="text"
+  on:input={handleHiddenInput}
+  on:paste|preventDefault|stopPropagation
+  on:blur={() => {
+    hiddenInput.focus()
+  }}
+  class="hidden-input"
+/>
 <section style="padding: 20px">
   <div style="margin: 0 auto; text-align: center; height: 20px">
     {phase === 'won'
@@ -324,4 +356,10 @@
 </div>
 
 <style>
+  .hidden-input {
+    opacity: 0;
+    font-size: 16px;
+    position: absolute;
+    pointer-events: none;
+  }
 </style>
