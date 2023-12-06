@@ -78,7 +78,10 @@ export async function findCodeSnippet(): Promise<CodeSnippet> {
       headers: { Authorization: authHeader },
     })
 
+    console.log('filesResult', filesResult.status, filesResult.statusText, await filesResult.text())
+
     const files = (await filesResult.json().then(x => x.items)) as Array<File>
+    console.log(files)
     const snippet = await Promise.race(
       files.map(async file => {
         // console.log('file', file.repository)
