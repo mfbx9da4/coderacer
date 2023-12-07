@@ -41,8 +41,7 @@ type FileContents = {
   encoding: string
 }
 
-const github_client_id = Deno.env.get('github_client_id') || config().github_client_id
-const github_client_secret = Deno.env.get('github_client_secret') || config().github_client_secret
+const github_token = Deno.env.get('github_token') || config().github_client_id
 const snippetCache: Array<CodeSnippet> = []
 const goodUsers = [
   'user:steveruizok',
@@ -75,13 +74,13 @@ export async function findCodeSnippet(): Promise<CodeSnippet> {
       .join('&')
     const authHeader = `Basic ${Base64.fromString(`${github_client_id}:${github_client_secret}`)}`
     const filesResult = await fetch(`https://api.github.com/search/code?${params}`, {
-      headers: { Authorization: authHeader },
+      headers: { Authorization: `Bearer ${github_token}` },
     })
 
-    console.log('filesResult', filesResult.status, filesResult.statusText, await filesResult.text())
+    const json = await filesResult.json()
+    console.log('json', JSON.stringify(json, null, 2))
 
-    const files = (await filesResult.json().then(x => x.items)) as Array<File>
-    console.log(files)
+    const files = json.items as Array<File>
     const snippet = await Promise.race(
       files.map(async file => {
         // console.log('file', file.repository)
